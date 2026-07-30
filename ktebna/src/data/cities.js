@@ -1,0 +1,28 @@
+const cities = [
+    "Tunis",
+    "Ariana",
+    "Manouba",
+    "Ben Arous",
+    "Nabeul",
+    "Bizerte",
+    "Zaghouan",
+    "Sousse",
+    "Monastir",
+    "Mahdia",
+    "Sfax",
+    "Béja",
+    "Jendouba",
+    "Le Kef",
+    "Siliana",
+    "Kairouan",
+    "Sidi Bouzid",
+    "Kasserine",
+    "Gabès",
+    "Médenine",
+    "Gafsa",
+    "Tozeur",
+    "Tataouine",
+    "Kébili",
+];
+
+export default cities;
