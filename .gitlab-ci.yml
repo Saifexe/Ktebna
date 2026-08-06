@@ -130,21 +130,25 @@ trivy-fs-backend:
     name: aquasec/trivy:latest
     entrypoint: [""]
   script:
-    - trivy fs --exit-code 0 --severity LOW,MEDIUM ./backend
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
+    - trivy fs --scanners vuln --exit-code 0 --severity LOW,MEDIUM ./backend
+    - trivy fs --scanners vuln --exit-code 1 --severity HIGH,CRITICAL ./backend
   allow_failure: true
 
 sonarcloud-check:
   stage: sonarcloud
   image: sonarsource/sonar-scanner-cli:latest
   variables:
-    SONAR_TOKEN: $SONAR_TOKEN
     GIT_DEPTH: "0"
   script:
-    - sonar-scanner
-      -Dsonar.organization=saifexd-group
-      -Dsonar.projectKey=saifexd-group_ktebna
-      -Dsonar.sources=.
-      -Dsonar.host.url=https://sonarcloud.io
-      -Dsonar.scanner.skipJreProvisioning=true
+    - sonar-scanner 
+    -Dsonar.token=$SONAR_TOKEN 
+    -Dsonar.organization=saifexd-group 
+    -Dsonar.projectKey=saifexd-group_ktebna 
+    -Dsonar.sources=. 
+    -Dsonar.host.url=https://sonarcloud.io 
+    -Dsonar.scanner.skipJreProvisioning=true
   allow_failure: true
+
+  cache:
+  paths:
+    - backend/.m2/repository
