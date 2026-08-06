@@ -10,6 +10,14 @@ variables:
   BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend
   FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+  GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+sonarcloud-check:
+  image: maven:3-openjdk-17
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
 
 # Single global cache definition - do not duplicate this block elsewhere in the file.
 # Path matches MAVEN_OPTS above so backend-test actually populates what other jobs reuse.
@@ -42,16 +50,18 @@ frontend-lint:
         - ktebna/**/*
 
 # ---------- SONARCLOUD (SAST) ----------
-
 sonarcloud-check:
   stage: sonarcloud
   image: sonarsource/sonar-scanner-cli:latest
   variables:
     GIT_DEPTH: "0"
   script:
+    - echo "Token length is ${#SONAR_TOKEN}"
     - sonar-scanner -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
+  only:
+    - main
+    - merge_requests
   allow_failure: true
-
 # ---------- SECRET DETECTION ----------
 
 gitleaks:
