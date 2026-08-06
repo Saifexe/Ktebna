@@ -43,11 +43,6 @@ sonarcloud-check:
   variables:
     GIT_DEPTH: "0"
   script:
-    - echo "CI_COMMIT_BRANCH is $CI_COMMIT_BRANCH"
-    - echo "CI_COMMIT_REF_PROTECTED is $CI_COMMIT_REF_PROTECTED"
-    - echo "CI_PIPELINE_SOURCE is $CI_PIPELINE_SOURCE"
-    - echo "SONAR_TOKEN length is ${#SONAR_TOKEN}"
-    - echo "SONAR_TOKEN_TEST3 length is ${#SONAR_TOKEN_TEST3}"
     - sonar-scanner -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
