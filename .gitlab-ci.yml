@@ -93,7 +93,9 @@ build-frontend:
 trivy-backend-image:
   stage: scan
   image: aquasec/trivy:latest
-  needs: ["build-backend"]
+  needs:
+    - job: build-backend
+      optional: true
   script:
     - trivy image --exit-code 0 --severity LOW,MEDIUM $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
     - trivy image --exit-code 1 --severity HIGH,CRITICAL $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
@@ -102,7 +104,9 @@ trivy-backend-image:
 trivy-frontend-image:
   stage: scan
   image: aquasec/trivy:latest
-  needs: ["build-frontend"]
+  needs:
+    - job: build-frontend
+      optional: true
   script:
     - trivy image --exit-code 0 --severity LOW,MEDIUM $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
     - trivy image --exit-code 1 --severity HIGH,CRITICAL $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
@@ -115,3 +119,31 @@ trivy-fs-backend:
     - trivy fs --exit-code 0 --severity LOW,MEDIUM ./backend
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
   allow_failure: true
+  
+  trivy-backend-image:
+  stage: scan
+  image: aquasec/trivy:latest
+  needs:
+    - job: build-backend
+      optional: true
+  script:
+    - trivy image --exit-code 0 --severity LOW,MEDIUM $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+  allow_failure: true
+  rules:
+    - changes:
+        - backend/**/*
+
+trivy-frontend-image:
+  stage: scan
+  image: aquasec/trivy:latest
+  needs:
+    - job: build-frontend
+      optional: true
+  script:
+    - trivy image --exit-code 0 --severity LOW,MEDIUM $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+  allow_failure: true
+  rules:
+    - changes:
+        - ktebna/**/*
