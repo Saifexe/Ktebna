@@ -94,7 +94,9 @@ build-frontend:
 
 trivy-backend-image:
   stage: scan
-  image: aquasec/trivy:latest
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
   needs:
     - job: build-backend
       optional: true
@@ -108,7 +110,9 @@ trivy-backend-image:
 
 trivy-frontend-image:
   stage: scan
-  image: aquasec/trivy:latest
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
   needs:
     - job: build-frontend
       optional: true
@@ -122,7 +126,9 @@ trivy-frontend-image:
 
 trivy-fs-backend:
   stage: scan
-  image: aquasec/trivy:latest
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
   script:
     - trivy fs --exit-code 0 --severity LOW,MEDIUM ./backend
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
