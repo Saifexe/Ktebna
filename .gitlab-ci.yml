@@ -43,6 +43,7 @@ sonarcloud-check:
   variables:
     GIT_DEPTH: "0"
   script:
+    - echo "SONAR_TOKEN length is ${#SONAR_TOKEN}"
     - sonar-scanner -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
