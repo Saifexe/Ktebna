@@ -9,6 +9,11 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend
   FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+
+cache:
+  paths:
+    - .m2/repository
 
 # ---------- TEST ----------
 
@@ -39,14 +44,9 @@ sonarcloud-check:
   stage: sonarcloud
   image: sonarsource/sonar-scanner-cli:latest
   variables:
-    SONAR_TOKEN: $SONAR_TOKEN
     GIT_DEPTH: "0"
   script:
-    - sonar-scanner
-      -Dsonar.organization=saifexd-group
-      -Dsonar.projectKey=saifexd-group_ktebna
-      -Dsonar.sources=.
-      -Dsonar.host.url=https://sonarcloud.io
+    - sonar-scanner -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
   allow_failure: true
 
 # ---------- SECRET DETECTION ----------
@@ -134,15 +134,6 @@ trivy-fs-backend:
     - trivy fs --scanners vuln --exit-code 1 --severity HIGH,CRITICAL ./backend
   allow_failure: true
 
-sonarcloud-check:
-  stage: sonarcloud
-  image: sonarsource/sonar-scanner-cli:latest
-  variables:
-    GIT_DEPTH: "0"
-  script:
-    - sonar-scanner -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
-  allow_failure: true
-
-  cache:
+cache:
   paths:
     - backend/.m2/repository
