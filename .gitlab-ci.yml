@@ -43,13 +43,11 @@ sonarcloud-check:
   variables:
     GIT_DEPTH: "0"
   script:
-    - env | grep -i SONAR
-    - sonar-scanner -Dsonar.token=$SONAR_TOKEN_V2 -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
-  only:
-    - main
-    - merge_requests
+    - sonar-scanner -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
   allow_failure: true
-
+  
 gitleaks:
   stage: security
   image:
