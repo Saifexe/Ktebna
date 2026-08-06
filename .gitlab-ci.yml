@@ -53,7 +53,9 @@ sonarcloud-check:
 
 gitleaks:
   stage: security
-  image: zricethezav/gitleaks:latest
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
   script:
     - gitleaks detect --source . --verbose --redact
   allow_failure: false
