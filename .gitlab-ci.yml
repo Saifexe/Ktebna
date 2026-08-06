@@ -11,7 +11,10 @@ variables:
   FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
 
+# Single global cache definition - do not duplicate this block elsewhere in the file.
+# Path matches MAVEN_OPTS above so backend-test actually populates what other jobs reuse.
 cache:
+  key: maven-repo
   paths:
     - .m2/repository
 
@@ -130,10 +133,8 @@ trivy-fs-backend:
     name: aquasec/trivy:latest
     entrypoint: [""]
   script:
-    - trivy fs --scanners vuln --exit-code 0 --severity LOW,MEDIUM ./backend
-    - trivy fs --scanners vuln --exit-code 1 --severity HIGH,CRITICAL ./backend
+    # --offline-scan avoids querying repo.maven.apache.org for transitive POM
+    # resolution, which is what triggered the 429 rate limit on the shared runner IP.
+    - trivy fs --scanners vuln --offline-scan --exit-code 0 --severity LOW,MEDIUM ./backend
+    - trivy fs --scanners vuln --offline-scan --exit-code 1 --severity HIGH,CRITICAL ./backend
   allow_failure: true
-
-cache:
-  paths:
-    - backend/.m2/repository
