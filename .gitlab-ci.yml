@@ -1,0 +1,117 @@
+stages:
+  - test
+  - sonarcloud
+  - security
+  - build
+  - scan
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend
+  FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend
+
+# ---------- TEST ----------
+
+backend-test:
+  stage: test
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - cd backend
+    - mvn test -B
+  rules:
+    - changes:
+        - backend/**/*
+
+frontend-lint:
+  stage: test
+  image: node:20-alpine
+  script:
+    - cd ktebna
+    - npm ci
+    - npm run lint
+  rules:
+    - changes:
+        - ktebna/**/*
+
+# ---------- SONARCLOUD (SAST) ----------
+
+sonarcloud-check:
+  stage: sonarcloud
+  image: sonarsource/sonar-scanner-cli:latest
+  variables:
+    SONAR_TOKEN: $SONAR_TOKEN
+    GIT_DEPTH: "0"
+  script:
+    - sonar-scanner
+      -Dsonar.organization=saifexd-group
+      -Dsonar.projectKey=saifexd-group_ktebna
+      -Dsonar.sources=.
+      -Dsonar.host.url=https://sonarcloud.io
+  allow_failure: true
+
+# ---------- SECRET DETECTION ----------
+
+gitleaks:
+  stage: security
+  image: zricethezav/gitleaks:latest
+  script:
+    - gitleaks detect --source . --verbose --redact
+  allow_failure: false
+
+# ---------- BUILD ----------
+
+build-backend:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA -t $BACKEND_IMAGE:latest ./backend
+    - docker push $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $BACKEND_IMAGE:latest
+  rules:
+    - changes:
+        - backend/**/*
+
+build-frontend:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA -t $FRONTEND_IMAGE:latest ./ktebna
+    - docker push $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $FRONTEND_IMAGE:latest
+  rules:
+    - changes:
+        - ktebna/**/*
+
+# ---------- VULNERABILITY SCANNING ----------
+
+trivy-backend-image:
+  stage: scan
+  image: aquasec/trivy:latest
+  needs: ["build-backend"]
+  script:
+    - trivy image --exit-code 0 --severity LOW,MEDIUM $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+  allow_failure: true
+
+trivy-frontend-image:
+  stage: scan
+  image: aquasec/trivy:latest
+  needs: ["build-frontend"]
+  script:
+    - trivy image --exit-code 0 --severity LOW,MEDIUM $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+  allow_failure: true
+
+trivy-fs-backend:
+  stage: scan
+  image: aquasec/trivy:latest
+  script:
+    - trivy fs --exit-code 0 --severity LOW,MEDIUM ./backend
+    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
+  allow_failure: true
