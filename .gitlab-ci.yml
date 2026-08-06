@@ -133,3 +133,18 @@ trivy-fs-backend:
     - trivy fs --exit-code 0 --severity LOW,MEDIUM ./backend
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
   allow_failure: true
+
+sonarcloud-check:
+  stage: sonarcloud
+  image: sonarsource/sonar-scanner-cli:latest
+  variables:
+    SONAR_TOKEN: $SONAR_TOKEN
+    GIT_DEPTH: "0"
+  script:
+    - sonar-scanner
+      -Dsonar.organization=saifexd-group
+      -Dsonar.projectKey=saifexd-group_ktebna
+      -Dsonar.sources=.
+      -Dsonar.host.url=https://sonarcloud.io
+      -Dsonar.scanner.skipJreProvisioning=true
+  allow_failure: true
