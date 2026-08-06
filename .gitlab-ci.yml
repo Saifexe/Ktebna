@@ -140,13 +140,7 @@ sonarcloud-check:
   variables:
     GIT_DEPTH: "0"
   script:
-    - sonar-scanner 
-    -Dsonar.token=$SONAR_TOKEN 
-    -Dsonar.organization=saifexd-group 
-    -Dsonar.projectKey=saifexd-group_ktebna 
-    -Dsonar.sources=. 
-    -Dsonar.host.url=https://sonarcloud.io 
-    -Dsonar.scanner.skipJreProvisioning=true
+    - sonar-scanner -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
   allow_failure: true
 
   cache:
