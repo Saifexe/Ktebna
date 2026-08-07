@@ -180,6 +180,7 @@ trivy-backend-image:
   rules:
     - changes:
         - backend/**/*
+        - .gitlab-ci.yml
 
 trivy-frontend-image:
   stage: scan
@@ -192,3 +193,7 @@ trivy-frontend-image:
     - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 0 --severity LOW,MEDIUM $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
     - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 1 --severity HIGH,CRITICAL $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
   allow_failure: true
+  rules:
+    - changes:
+        - ktebna/**/*
+        - .gitlab-ci.yml
