@@ -152,6 +152,7 @@ build-frontend:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
 
     - docker build
+      --build-arg VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
       -t $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
       -t $FRONTEND_IMAGE:latest
       ./ktebna
