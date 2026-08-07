@@ -19,7 +19,7 @@ const AuthProvider = ({ children }) => {
     try {
       const { data } = await apiClient.get("/api/auth/me");
       setUser(data); // { id, name, email, profilePicture }
-    } catch (error) {
+    } catch {
       localStorage.removeItem(TOKEN_KEY);
       setUser(null);
     } finally {

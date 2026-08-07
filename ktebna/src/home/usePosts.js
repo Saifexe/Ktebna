@@ -48,7 +48,7 @@ export const usePosts = ({ category, dealType, location, search, page, userId })
             );
             const savedSet = new Set(savedIds);
             results = results.map((p) => ({ ...p, isSaved: savedSet.has(p.id) }));
-          } catch (e) {
+          } catch {
             // Non-fatal: just show posts without the saved indicator.
           }
         }

@@ -1,7 +1,6 @@
 import React from "react";
 import { BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 
 const BooksList = ({ books }) => {
   const navigate = useNavigate();

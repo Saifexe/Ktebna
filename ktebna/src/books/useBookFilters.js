@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-
 export const useBookFilters = () => {
     const [language, setLanguage] = useState("All languages");
     const [category, setCategory] = useState("All");
 
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [, setSearchParams] = useSearchParams();
 
     useEffect(() => {
         const params = {};

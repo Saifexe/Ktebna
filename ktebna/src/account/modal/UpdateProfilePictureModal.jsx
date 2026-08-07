@@ -15,7 +15,6 @@ import { useTranslation } from "react-i18next";
 const UpdateProfilePictureModal = ({
   open,
   handleClose,
-  userId,
   userProfilePicture,
 }) => {
   const { t } = useTranslation();

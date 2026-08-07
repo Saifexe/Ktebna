@@ -21,7 +21,7 @@ import cities from "../../data/cities";
 import CATEGORIES from "../../data/categories";
 import { useTranslation } from "react-i18next";
 
-const AddPostModal = ({ open, onClose, userId, onAdd }) => {
+const AddPostModal = ({ open, onClose, onAdd }) => {
   const {
     handleSubmit,
     control,

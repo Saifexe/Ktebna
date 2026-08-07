@@ -2,27 +2,37 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 export const useHomeFilters = () => {
-    const [category, setCategory] = useState("All");
-    const [dealType, setDealType] = useState("All");
-    const [location, setLocation] = useState("allTunisia");
+  const [category, setCategory] = useState("All");
+  const [dealType, setDealType] = useState("All");
+  const [location, setLocation] = useState("allTunisia");
 
-    const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
 
-    useEffect(() => {
-        const params = {};
-        if (dealType !== "All") params.dealType = dealType;
-        if (location !== "allTunisia") params.location = location;
-        if (category !== "All") params.category = category;
+  useEffect(() => {
+    const params = {};
 
-        setSearchParams(params);
-    }, [dealType, location, category]);
+    if (dealType !== "All") {
+      params.dealType = dealType;
+    }
 
-    return {
-        category,
-        setCategory,
-        dealType,
-        setDealType,
-        location,
-        setLocation,
-    };
+    if (location !== "allTunisia") {
+      params.location = location;
+    }
+
+    if (category !== "All") {
+      params.category = category;
+    }
+
+    setSearchParams(params);
+
+  }, [dealType, location, category, setSearchParams]);
+
+  return {
+    category,
+    setCategory,
+    dealType,
+    setDealType,
+    location,
+    setLocation,
+  };
 };

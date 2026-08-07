@@ -10,7 +10,6 @@ export default function ChatDrawer({
   onClose,
   otherUserId,
   otherUserName,
-  userName,
   bookName,
 }) {
   const { t } = useTranslation();

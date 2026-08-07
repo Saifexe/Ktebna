@@ -1,4 +1,3 @@
-import { motion, AnimatePresence } from "framer-motion";
 import CircularProgress from "@mui/material/CircularProgress";
 import HomeBook from "./HomeBook";
 import { useTranslation } from "react-i18next";

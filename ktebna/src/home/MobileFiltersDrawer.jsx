@@ -1,6 +1,5 @@
 import React from "react";
 import { Filter, X, SlidersHorizontal } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import HomeFilterPanel from "./HomeFilterPanel";
 import { useTranslation } from "react-i18next";
 const DRAWER_ANIMATION = {

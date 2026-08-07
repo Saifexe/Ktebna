@@ -1,6 +1,5 @@
 import React from "react";
-import { Menu, X, Home, BookOpen, Info, Mail } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Menu, X, User, Home, BookOpen, Info, Mail } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -54,7 +53,7 @@ const MobileMenuDrawer = ({ open, onClose }) => {
 
             {/* Navigation */}
             <nav className="flex flex-col gap-2">
-              {links.map(({ to, label, icon: Icon }) => (
+              {links.map(({ to, label }) => (
                 <Link
                   key={to}
                   to={to}

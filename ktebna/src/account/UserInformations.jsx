@@ -23,20 +23,30 @@ const UserInformations = () => {
     return data; // { id, name, email, profilePicture }
   };
 
-  const {
-    data: userInfo,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["userInfo", user?.id],
-    queryFn: fetchUserInformation,
-    enabled: !!user?.id,
-  });
+const {
+  data: userInfo,
+  isLoading,
+  isError,
+  refetch,
+} = useQuery({
+  queryKey: ["userInfo", user?.id],
+  queryFn: fetchUserInformation,
+  enabled: !!user?.id,
+});
 
-  useEffect(() => {
-    if (userInfo?.name) setNewName(userInfo.name);
-  }, [userInfo]);
+useEffect(() => {
+  if (userInfo?.name) {
+    setNewName(userInfo.name);
+  }
+}, [userInfo]);
+
+if (isLoading) {
+  return <p>Loading user information...</p>;
+}
+
+if (isError) {
+  return <p>Failed to load user information.</p>;
+}
 
   const handleSave = async () => {
     try {

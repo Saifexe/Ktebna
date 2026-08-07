@@ -1,6 +1,5 @@
 import React from "react";
 import { Filter } from "lucide-react";
-import cities from "../data/cities";
 import { useTranslation } from "react-i18next";
 
 const BooksHeader = ({ language, setLanguage }) => {
