@@ -47,7 +47,7 @@ sonarcloud-check:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   allow_failure: true
-  
+
 gitleaks:
   stage: security
   image:
@@ -100,7 +100,7 @@ trivy-backend-image:
   rules:
     - changes:
         - backend/**/*
-        
+
 trivy-frontend-image:
   stage: scan
   image:
