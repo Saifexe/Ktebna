@@ -94,13 +94,13 @@ trivy-backend-image:
     - job: build-backend
       optional: true
   script:
-    - trivy image --exit-code 0 --severity LOW,MEDIUM $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
-    - trivy image --exit-code 1 --severity HIGH,CRITICAL $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 0 --severity LOW,MEDIUM $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 1 --severity HIGH,CRITICAL $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
   allow_failure: true
   rules:
     - changes:
         - backend/**/*
-
+        
 trivy-frontend-image:
   stage: scan
   image:
@@ -110,8 +110,8 @@ trivy-frontend-image:
     - job: build-frontend
       optional: true
   script:
-    - trivy image --exit-code 0 --severity LOW,MEDIUM $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
-    - trivy image --exit-code 1 --severity HIGH,CRITICAL $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 0 --severity LOW,MEDIUM $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 1 --severity HIGH,CRITICAL $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
   allow_failure: true
   rules:
     - changes:
