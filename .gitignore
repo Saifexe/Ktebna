@@ -43,3 +43,6 @@ desktop.ini
 # ===== Misc =====
 *.tmp
 *.bak
+
+# ===== Generated analysis =====
+graphify-out/
