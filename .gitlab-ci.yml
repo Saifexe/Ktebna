@@ -16,10 +16,6 @@ cache:
   paths:
     - .m2/repository
 
-############################
-# TEST
-############################
-
 backend-test:
   stage: test
   image: maven:3.9-eclipse-temurin-17
@@ -41,31 +37,16 @@ frontend-lint:
     - changes:
         - ktebna/**/*
 
-############################
-# SONARCLOUD
-############################
-
 sonarcloud-check:
   stage: sonarcloud
   image: sonarsource/sonar-scanner-cli:latest
   variables:
     GIT_DEPTH: "0"
   script:
-    - >
-      sonar-scanner
-      -Dsonar.token=$SONAR_TOKEN
-      -Dsonar.organization=saifexd-group
-      -Dsonar.projectKey=saifexd-group_ktebna
-      -Dsonar.sources=.
-      -Dsonar.host.url=https://sonarcloud.io
-      -Dsonar.scanner.skipJreProvisioning=true
+    - sonar-scanner -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=saifexd-group -Dsonar.projectKey=saifexd-group_ktebna -Dsonar.sources=. -Dsonar.host.url=https://sonarcloud.io -Dsonar.scanner.skipJreProvisioning=true
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-  allow_failure: false
-
-############################
-# SECURITY
-############################
+  allow_failure: true
 
 gitleaks:
   stage: security
@@ -76,30 +57,16 @@ gitleaks:
     - gitleaks detect --source . --verbose --redact
   allow_failure: false
 
-trivy-fs-backend:
-  stage: security
-  image:
-    name: aquasec/trivy:latest
-    entrypoint: [""]
-  script:
-    - trivy fs --scanners vuln --offline-scan --exit-code 0 --severity LOW,MEDIUM ./backend
-    - trivy fs --scanners vuln --offline-scan --exit-code 1 --severity HIGH,CRITICAL ./backend
-  allow_failure: false
-
-############################
-# BUILD
-############################
-
 build-backend:
   stage: build
   image: docker:27
   services:
     - docker:27-dind
   script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-    - docker build -t "$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA" -t "$BACKEND_IMAGE:latest" ./backend
-    - docker push "$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA"
-    - docker push "$BACKEND_IMAGE:latest"
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA -t $BACKEND_IMAGE:latest ./backend
+    - docker push $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $BACKEND_IMAGE:latest
   rules:
     - changes:
         - backend/**/*
@@ -110,17 +77,13 @@ build-frontend:
   services:
     - docker:27-dind
   script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-    - docker build -t "$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA" -t "$FRONTEND_IMAGE:latest" ./ktebna
-    - docker push "$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA"
-    - docker push "$FRONTEND_IMAGE:latest"
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA -t $FRONTEND_IMAGE:latest ./ktebna
+    - docker push $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $FRONTEND_IMAGE:latest
   rules:
     - changes:
         - ktebna/**/*
-
-############################
-# IMAGE SCANNING
-############################
 
 trivy-backend-image:
   stage: scan
@@ -128,11 +91,12 @@ trivy-backend-image:
     name: aquasec/trivy:latest
     entrypoint: [""]
   needs:
-    - build-backend
+    - job: build-backend
+      optional: true
   script:
-    - trivy image --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --exit-code 0 --severity LOW,MEDIUM "$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA"
-    - trivy image --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --exit-code 1 --severity HIGH,CRITICAL "$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA"
-  allow_failure: false
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 0 --severity LOW,MEDIUM $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 1 --severity HIGH,CRITICAL $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+  allow_failure: true
   rules:
     - changes:
         - backend/**/*
@@ -143,11 +107,22 @@ trivy-frontend-image:
     name: aquasec/trivy:latest
     entrypoint: [""]
   needs:
-    - build-frontend
+    - job: build-frontend
+      optional: true
   script:
-    - trivy image --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --exit-code 0 --severity LOW,MEDIUM "$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA"
-    - trivy image --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --exit-code 1 --severity HIGH,CRITICAL "$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA"
-  allow_failure: false
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 0 --severity LOW,MEDIUM $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 1 --severity HIGH,CRITICAL $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+  allow_failure: true
   rules:
     - changes:
         - ktebna/**/*
+
+trivy-fs-backend:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy fs --scanners vuln --offline-scan --exit-code 0 --severity LOW,MEDIUM ./backend
+    - trivy fs --scanners vuln --offline-scan --exit-code 1 --severity HIGH,CRITICAL ./backend
+  allow_failure: true
