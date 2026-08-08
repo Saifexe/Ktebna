@@ -1,7 +1,9 @@
 import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Filter, X, SlidersHorizontal } from "lucide-react";
 import HomeFilterPanel from "./HomeFilterPanel";
 import { useTranslation } from "react-i18next";
+
 const DRAWER_ANIMATION = {
   initial: { x: -320 },
   animate: { x: 0 },

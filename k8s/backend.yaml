@@ -34,10 +34,12 @@ spec:
       labels:
         app: backend
     spec:
+      imagePullSecrets:
+        - name: gitlab-registry
       containers:
         - name: backend
           image: registry.gitlab.com/saifexd-group/ktebna/backend:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           env:

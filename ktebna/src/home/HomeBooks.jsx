@@ -1,6 +1,8 @@
 import CircularProgress from "@mui/material/CircularProgress";
 import HomeBook from "./HomeBook";
 import { useTranslation } from "react-i18next";
+import { motion, AnimatePresence } from "framer-motion";
+
 const HomeBooks = ({
   posts,
   isLoading,

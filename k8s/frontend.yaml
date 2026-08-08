@@ -13,10 +13,12 @@ spec:
       labels:
         app: frontend
     spec:
+      imagePullSecrets:
+        - name: gitlab-registry
       containers:
         - name: frontend
-          image: registry.gitlab.com/saifexd-group/ktebna/frontend:latest
-          imagePullPolicy: Always
+          image: registry.gitlab.com/saifexd-group/ktebna/frontend@sha256:3b4e0f9ff2d0f6f104c68b37ff9f0131f09beac188e0c8500c33c2bc0e128bd8
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           readinessProbe:
