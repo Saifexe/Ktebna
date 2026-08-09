@@ -38,7 +38,7 @@ spec:
         - name: gitlab-registry
       containers:
         - name: backend
-          image: registry.gitlab.com/saifexd-group/ktebna/backend:latest
+          image: registry.gitlab.com/saifexd-group/ktebna/backend@sha256:f99e387d4f37f9233274f9dcdfaaf1784ad068e0028cfc917f7a23aa89910d0d
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
