@@ -1,4 +1,5 @@
 import React from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, User, Home, BookOpen, Info, Mail } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";

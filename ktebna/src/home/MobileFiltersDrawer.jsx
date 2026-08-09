@@ -1,4 +1,5 @@
 import React from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { Filter, X, SlidersHorizontal } from "lucide-react";
 import HomeFilterPanel from "./HomeFilterPanel";

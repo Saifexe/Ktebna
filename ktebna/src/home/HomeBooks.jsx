@@ -1,6 +1,7 @@
 import CircularProgress from "@mui/material/CircularProgress";
 import HomeBook from "./HomeBook";
 import { useTranslation } from "react-i18next";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 
 const HomeBooks = ({
