@@ -87,10 +87,6 @@ export default function ChatDrawer({
     }
   };
 
-  const userMessageCount = messages.filter((m) => m.userId === user?.id).length;
-  const messageLimit = 2;
-  const canSendMore = userMessageCount < messageLimit;
-
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString("en-US", {
@@ -140,31 +136,6 @@ export default function ChatDrawer({
           </button>
         </div>
 
-        {/* Message Limit Warning */}
-        <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
-          <div className="flex items-start gap-2">
-            <AlertCircle
-              size={16}
-              className="text-amber-600 mt-0.5 flex-shrink-0"
-            />
-            <p className="text-xs text-amber-800">
-              {t("chatDrawer.messageLimitWarning")}
-            </p>
-          </div>
-        </div>
-        {!canSendMore && (
-          <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
-            <div className="flex items-start gap-2">
-              <AlertCircle
-                size={16}
-                className="text-amber-600 mt-0.5 flex-shrink-0"
-              />
-              <p className="text-xs text-amber-800">
-                {t("chatDrawer.messageLimitReached")}
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -235,12 +206,8 @@ export default function ChatDrawer({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder={
-                  canSendMore
-                    ? t("chatDrawer.typeMessage")
-                    : t("chatDrawer.messageLimitReachedPlaceholder")
-                }
-                disabled={!canSendMore || sending}
+                placeholder={t("chatDrawer.typeMessage")}
+                disabled={sending}
                 rows={1}
                 className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400 transition-all text-sm"
                 style={{
@@ -253,13 +220,10 @@ export default function ChatDrawer({
                     Math.min(e.target.scrollHeight, 120) + "px";
                 }}
               />
-              <div className="absolute bottom-2 right-2 text-xs text-gray-400">
-                {userMessageCount}/{messageLimit}
-              </div>
             </div>
             <button
               onClick={handleSend}
-              disabled={!input.trim() || sending || !canSendMore}
+              disabled={!input.trim() || sending}
               className={`p-3 rounded-full transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
                 sending
                   ? "bg-amber-400"

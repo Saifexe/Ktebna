@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Base URL of the Spring Boot backend. Configure per environment via .env:
 // VITE_API_URL=http://localhost:8080
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 export const apiClient = axios.create({
   baseURL: API_URL,

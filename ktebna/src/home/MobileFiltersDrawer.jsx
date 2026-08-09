@@ -1,5 +1,5 @@
 import React from "react";
-import { AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Filter, X, SlidersHorizontal } from "lucide-react";
 import HomeFilterPanel from "./HomeFilterPanel";
 import { useTranslation } from "react-i18next";

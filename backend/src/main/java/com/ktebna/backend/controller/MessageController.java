@@ -25,8 +25,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class MessageController {
 
-    private static final int MESSAGE_LIMIT_PER_USER = 2;
-
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
@@ -55,20 +53,19 @@ public class MessageController {
                 .orElseThrow(() -> new ApiException("Recipient not found", HttpStatus.NOT_FOUND));
 
         Conversation conversation = conversationRepository
-                .findBetweenUsers(currentUser.getId(), otherUser.getId())
-                .orElseGet(() -> {
-                    Conversation c = new Conversation();
-                    c.setFirstUser(currentUser);
-                    c.setSecondUser(otherUser);
-                    c.setConversationTopic(req.getBookName());
-                    return conversationRepository.save(c);
-                });
-
-        long alreadySent = messageRepository.countByConversationIdAndUserId(conversation.getId(), currentUser.getId());
-        if (alreadySent >= MESSAGE_LIMIT_PER_USER) {
-            throw new ApiException("Message limit (" + MESSAGE_LIMIT_PER_USER + ") reached for this conversation",
-                    HttpStatus.BAD_REQUEST);
-        }
+        .findBetweenUsers(currentUser.getId(), otherUser.getId())
+        .orElseGet(() -> {
+            Conversation c = new Conversation();
+            if (currentUser.getId() < otherUser.getId()) {
+                c.setFirstUser(currentUser);
+                c.setSecondUser(otherUser);
+            } else {
+                c.setFirstUser(otherUser);
+                c.setSecondUser(currentUser);
+            }
+            c.setConversationTopic(req.getBookName());
+            return conversationRepository.save(c);
+        });
 
         Message message = new Message();
         message.setConversation(conversation);
