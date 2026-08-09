@@ -28,34 +28,61 @@ For the full security posture, incident history, and credential-rotation record,
 
 ## Architecture
 
-```
-                        ┌─────────────────────────┐
-                        │   GitLab CI/CD Pipeline   │
-                        │  test → sonar → security  │
-                        │      → build → scan       │
-                        └────────────┬─────────────┘
-                                     │ pushes images
-                                     ▼
-                        ┌─────────────────────────┐
-                        │  GitLab Container Registry│
-                        └────────────┬─────────────┘
-                                     │ pulled by
-                                     ▼
-        ┌───────────────────────────────────────────────────┐
-        │              Kubernetes namespace: ktebna           │
-        │                                                       │
-        │   ┌───────────┐     ┌───────────┐     ┌───────────┐ │
-        │   │  frontend  │────▶│  backend   │────▶│   mysql    │ │
-        │   │ (Nginx +   │     │ (Spring     │     │ (PVC-backed)│ │
-        │   │  React SPA)│     │  Boot API) │     │            │ │
-        │   └───────────┘     └───────────┘     └───────────┘ │
-        │    LoadBalancer        ClusterIP         ClusterIP    │
-        └───────────────────────────────────────────────────┘
+### Deployment topology
+
+```mermaid
+flowchart LR
+    subgraph CI["GitLab CI/CD Pipeline"]
+        direction TB
+        T[test] --> S[sonarcloud] --> SEC[security] --> B[build] --> SC[scan]
+    end
+    CI -->|pushes images| REG[(GitLab Container Registry)]
+    REG -->|pulled by| K8S
+
+    subgraph K8S["Kubernetes namespace: ktebna"]
+        direction LR
+        FE["frontend<br/>Nginx + React SPA<br/>(LoadBalancer)"] -->|"/api/* proxied"| BE["backend<br/>Spring Boot API<br/>(ClusterIP)"]
+        BE --> DB[("mysql<br/>PVC-backed<br/>(ClusterIP)")]
+    end
 ```
 
 The frontend is served as static assets by Nginx, which also reverse-proxies `/api/*` requests to the backend Service internally — this means the same build works identically in Docker Compose and in Kubernetes, since both environments have a service literally named `backend` on port `8080`, and the frontend never needs to know a specific hostname or port at build time.
 
-*(A more detailed dependency graph, generated with Graphify, is available as supplementary architecture material.)*
+### Codebase structure (backend domain model)
+
+Generated from a static dependency analysis of the backend source (419 nodes, 952 edges across the full codebase; core domain relationships shown below). The most connected classes — `User`, `ApiException`, `UserDto`, `Conversation`, `Post` — are the project's central abstractions, which lines up with the four core features (auth, listings, messaging, favorites).
+
+```mermaid
+flowchart TB
+    User((User)) --> Post
+    User --> Conversation
+    User --> SavedPost
+    User --> Message
+
+    Post --> PostController
+    Post --> PostResponse
+    PostController --> FileStorageService
+
+    Conversation --> ConversationController
+    ConversationController --> ConversationRepository
+    Conversation --> Message
+
+    Message --> MessageController
+    MessageController --> MessageRepository
+    MessageController --> ConversationRepository
+
+    User --> AuthController
+    AuthController --> JwtUtil
+    SecurityConfig --> JwtAuthFilter
+    JwtAuthFilter --> JwtUtil
+
+    ApiException -.->|thrown across| PostController
+    ApiException -.-> ConversationController
+    ApiException -.-> MessageController
+```
+
+Full interactive dependency graph (all 419 nodes, generated with [Graphify](https://github.com/) from commit `4286fffd`) is included in this repo at `graphify-out/graph.html` — open it locally in a browser for the explorable version. Regenerate after code changes with `graphify update .`.
+
 
 ---
 
