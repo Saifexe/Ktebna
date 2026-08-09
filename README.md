@@ -1,8 +1,11 @@
-# Ktebna
+﻿# Ktebna
 
-**Ktebna** is a peer-to-peer book marketplace web application — a platform for browsing, listing, buying, and exchanging books, with built-in messaging between users.
+**A DevSecOps CI/CD pipeline project.** 
+The application itself — a peer-to-peer book marketplace — is the *subject* of the exercise, not the point of it. The actual work here is taking an already-functional app and wrapping it in a full security-gated CI/CD pipeline, deploying it to Kubernetes, and building the operational practices (incident response, credential management, rollback procedures) around it. Application feature work is intentionally minimal; almost everything in this repo — the pipeline, the security gates, the manifests, the incident history — exists to demonstrate DevSecOps practice, not to ship product features.
 
-This phase of the project is a **DevSecOps CI/CD pipeline exercise** (Arabsoft summer internship 2026): taking an already-functional application and wrapping it in a full security-gated CI/CD pipeline, deploying it to Kubernetes, and adding observability. The focus of this work is infrastructure, pipeline, and deployment — not new application features.
+Built as part of the Arabsoft summer internship 2026.
+
+**What Ktebna the app does**, for context: it's a platform for browsing, listing, buying, and exchanging books, with built-in messaging between users. That's it — the interesting engineering work in this repository is everything *around* that app, not the app itself.
 
 For the full security posture, incident history, and credential-rotation record, see **[SECURITY.md](./SECURITY.md)**.
 
@@ -81,7 +84,7 @@ flowchart TB
     ApiException -.-> MessageController
 ```
 
-Full interactive dependency graph (all 419 nodes, generated with [Graphify](https://github.com/) from commit `4286fffd`) is included in this repo at `graphify-out/graph.html` — open it locally in a browser for the explorable version. Regenerate after code changes with `graphify update .`.
+Full interactive dependency graph (419 nodes across the codebase) can be regenerated locally with `graphify update .` (requires [Graphify](https://github.com/) installed) — not committed to this repo, since it's a large, code-generated artifact that goes stale on every change.
 
 
 ---
@@ -219,6 +222,13 @@ Check the exact error with `kubectl describe pod <pod-name> -n ktebna` and read 
 
 ---
 
+## A Note on What This Project Actually Demonstrates
+
+The app-level bugs documented in this repo's history and in `SECURITY.md` — a race condition, a hardcoded config value, a misconfigured linter causing a false fix — are ordinary software bugs, not remarkable on their own. What this project is actually meant to show is the **process wrapped around them**: every one of those bugs was caught by a real gate or a real test rather than shipped silently, every credential incident was diagnosed with a repeatable, tool-independent verification method rather than guesswork, and every fix was verified in a lower environment before being pushed toward production. That process — not the app — is the deliverable.
+
+---
+
 ## License
 
 Internal internship project — not licensed for external distribution.
+
