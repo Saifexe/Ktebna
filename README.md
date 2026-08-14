@@ -1,4 +1,4 @@
-﻿# Ktebna
+# Ktebna
 
 **A DevSecOps CI/CD pipeline project.** 
 The application itself — a peer-to-peer book marketplace — is the *subject* of the exercise, not the point of it. The actual work here is taking an already-functional app and wrapping it in a full security-gated CI/CD pipeline, deploying it to Kubernetes, and building the operational practices (incident response, credential management, rollback procedures) around it. Application feature work is intentionally minimal; almost everything in this repo — the pipeline, the security gates, the manifests, the incident history — exists to demonstrate DevSecOps practice, not to ship product features.
@@ -218,10 +218,9 @@ Check the exact error with `kubectl describe pod <pod-name> -n ktebna` and read 
 
 - **Kubernetes image pull failure (unresolved, investigated and parked):** the local Docker Desktop Kubernetes node cannot pull newly built images past a fixed point (consistent `short read: unexpected EOF` at an identical byte offset). Tested and ruled out across two sessions: credentials (verified valid via direct registry auth checks), tag vs. digest reference, a full Docker Desktop restart, proxy interference (added the registry to Docker Desktop's proxy bypass list, restarted, retried — identical failure), and a full Kubernetes cluster reset (wiped and rebuilt the node from scratch, retried — identical failure). A control pull of a public Docker Hub image succeeded cleanly on the same node, confirming the issue is scoped specifically to this private registry's pull path, not general networking. Root cause not identified; formally accepted as a documented known issue rather than pursued further, given the scope of remaining, more actionable work. Deployments are pinned to the last successfully-pulled image as a stable, verified workaround. All application-level fixes referenced in this README have been fully verified via Docker Compose.
 - ~~**Accessibility:** a browser console warning (`aria-hidden` blocked on an element with focus)...~~ — **Re-tested 10 Aug 2026, no longer reproduces.** Deliberately re-triggered via keyboard focus inside `MobileFiltersDrawer`/`MobileMenuDrawer` followed by close, with DevTools Console open — no warning appears, and `document.querySelectorAll('[aria-hidden="true"]')` shows only expected decorative icon SVGs (`lucide-react` icons, correctly marked to be skipped by screen readers), not `#root`. Likely resolved incidentally by a dependency update since the warning was first logged; not re-added as an open item.
-- **Monitoring:** Prometheus/Grafana are planned but not yet implemented.
+- **Monitoring:** Prometheus + Grafana implemented and verified working in Docker Compose (metrics scraping, dashboard auto-provisioning, and live panel data all confirmed). Not deployed to Kubernetes, since the k8s track is parked (see above).
 
 ---
-- ~~**Accessibility:** a browser console warning (`aria-hidden` blocked on an element with focus)...~~ — **Re-tested 10 Aug 2026, no longer reproduces.** Deliberately re-triggered via keyboard focus inside `MobileFiltersDrawer`/`MobileMenuDrawer` followed by close, with DevTools Console open — no warning appears, and `document.querySelectorAll('[aria-hidden="true"]')` shows only expected decorative icon SVGs (`lucide-react` icons, correctly marked to be skipped by screen readers), not `#root`. Likely resolved incidentally by a dependency update since the warning was first logged; not re-added as an open item.
 
 ## A Note on What This Project Actually Demonstrates
 
@@ -232,4 +231,3 @@ The app-level bugs documented in this repo's history and in `SECURITY.md` — a 
 ## License
 
 Internal internship project — not licensed for external distribution.
-
