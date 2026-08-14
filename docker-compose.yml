@@ -44,7 +44,7 @@ services:
     build:
       context: ./ktebna
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: ktebna-frontend
     restart: unless-stopped
     depends_on:
