@@ -6,7 +6,7 @@ This project uses GitLab CI/CD to run automated quality and security checks befo
 
 | Stage | Job | Tool | Purpose | Current behavior |
 | --- | --- | --- | --- | --- |
-| `test` | `backend-test` | Maven | Runs backend tests | Fails on test errors |
+| `test` | `backend-test` | Maven + Testcontainers | 62 unit and integration tests against a real MySQL 8, including security regression tests (auth, ownership, privacy, rate limits, upload validation); publishes JUnit + JaCoCo coverage | Fails on any test failure |
 | `test` | `frontend-lint` | ESLint | Checks frontend code quality | Fails on lint errors |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud | Static code analysis | Advisory, allowed to fail |
 | `security` | `gitleaks` | Gitleaks v8.30.1 | Detects secrets in the working tree and the full git history | Fails on detected secrets |

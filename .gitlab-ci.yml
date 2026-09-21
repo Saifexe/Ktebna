@@ -29,9 +29,38 @@ backend-test:
   stage: test
   image: maven:3.9-eclipse-temurin-17
 
+  # Integration tests start a real MySQL 8 with Testcontainers, so the job
+  # needs a Docker daemon (same dind setup as the build jobs).
+  services:
+    - name: docker:27-dind
+      alias: docker
+
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    TESTCONTAINERS_HOST_OVERRIDE: docker
+    # The dind service is thrown away with the job, so the reaper isn't needed.
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+
   script:
     - cd backend
     - mvn test -B
+    # LINE_MISSED / LINE_COVERED are columns 8 and 9 of JaCoCo's CSV.
+    - |
+      awk -F, 'NR>1 {m+=$8; c+=$9} END {printf "Line coverage: %.1f%%\n", 100*c/(c+m)}' target/site/jacoco/jacoco.csv
+
+  coverage: '/Line coverage: \d+\.\d+%/'
+
+  artifacts:
+    when: always
+    reports:
+      junit: backend/target/surefire-reports/TEST-*.xml
+      coverage_report:
+        coverage_format: jacoco
+        path: backend/target/site/jacoco/jacoco.xml
+    paths:
+      - backend/target/site/jacoco/jacoco.xml
+      - backend/target/classes/
+    expire_in: 1 week
 
 
 frontend-lint:
@@ -66,6 +95,9 @@ sonarcloud-check:
       -Dsonar.sources=.
       -Dsonar.host.url=https://sonarcloud.io
       -Dsonar.scanner.skipJreProvisioning=true
+      -Dsonar.exclusions=backend/src/test/**,**/node_modules/**,**/dist/**
+      -Dsonar.java.binaries=backend/target/classes
+      -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
 
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'

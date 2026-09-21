@@ -23,7 +23,7 @@ Automated gates run on every push through GitLab CI/CD (SonarCloud runs on `main
 
 | Gate | Tool | What it catches | Blocking? |
 |---|---|---|---|
-| Unit tests / lint | Maven, ESLint | Build breaks, lint errors | **Blocking** |
+| Tests / lint | JUnit + Testcontainers, ESLint | Regressions in auth, authorization, privacy, rate limiting and upload validation (62 tests, ~95% line coverage); lint errors | **Blocking** |
 | Static Application Security Testing (SAST) | SonarCloud | Code quality issues, security hotspots, code smells | Non-blocking (`allow_failure: true`) |
 | Secret scanning | Gitleaks v8.30.1 | Credentials, tokens, keys in the checked-out files **and in every commit of the history** (`GIT_DEPTH: 0`) | **Blocking** |
 | Filesystem vulnerability scanning | Trivy FS | Known CVEs in backend dependencies (offline DB) | Non-blocking; job fails on HIGH/CRITICAL and shows as a warning |
@@ -150,4 +150,4 @@ Automated scanning (SAST, secret scanning, dependency/image scanning) covers a s
 - A JavaScript reference error that only showed up when the app was opened in a browser passed every automated gate cleanly.
 - The 1 MB Nginx upload limit passed every gate and every local test, and was only caught by an end-to-end upload through the real Docker stack.
 
-Automated gates and manual end-to-end testing are complementary, not interchangeable.
+Automated gates and manual end-to-end testing are complementary, not interchangeable. Since 21 Sep 2026 the security behaviour verified by hand (the 18-check attack script) is also encoded as backend tests, so it's re-checked on every push. Writing them found one more bug: requests without a valid login got `403` instead of `401`, so the frontend never cleared an expired token. Fixed with a 401 authentication entry point.

@@ -30,6 +30,11 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
+    // On by default; integration tests switch it off so that registering many
+    // test users doesn't trip the limits (the limiter has its own tests).
+    @Value("${app.rate-limit.enabled:true}")
+    private boolean rateLimitEnabled;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -41,6 +46,13 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Not logged in (no, expired or forged token) is 401, not Spring's
+                // default 403: the frontend clears its stored token only on 401.
+                .exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) -> {
+                    response.setStatus(401);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Authentication required\"}");
+                }))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
@@ -48,9 +60,11 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                // After the JWT filter so per-user limits can see who is calling.
-                .addFilterAfter(new RateLimitFilter(), JwtAuthFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        if (rateLimitEnabled) {
+            // After the JWT filter so per-user limits can see who is calling.
+            http.addFilterAfter(new RateLimitFilter(), JwtAuthFilter.class);
+        }
 
         return http.build();
     }

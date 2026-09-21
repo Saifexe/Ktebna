@@ -20,6 +20,7 @@ For the full security posture, incident history, and credential-rotation record,
 - [Getting started](#getting-started)
 - [Configuration](#configuration)
 - [API reference](#api-reference)
+- [Testing](#testing)
 - [CI/CD pipeline](#cicd-pipeline)
 - [Monitoring](#monitoring)
 - [Kubernetes deployment](#kubernetes-deployment)
@@ -156,7 +157,7 @@ flowchart TB
 
 ```
 .
-├── backend/                  Spring Boot API (Maven)
+├── backend/                  Spring Boot API (Maven Wrapper: ./mvnw)
 │   ├── Dockerfile
 │   └── src/main/java/com/ktebna/backend/
 │       ├── config/           Security (JWT filter chain, CORS), static uploads
@@ -166,6 +167,7 @@ flowchart TB
 │       ├── repository/       Spring Data JPA repositories
 │       ├── security/         JwtUtil, JwtAuthFilter
 │       └── service/          FileStorageService, EmailNotificationService
+│   └── src/test/java/…/      unit/ (no Spring) and api/ (Testcontainers MySQL) tests
 ├── ktebna/                   React frontend (Vite)
 │   ├── Dockerfile, nginx.conf
 │   └── src/
@@ -314,13 +316,33 @@ Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by fil
 
 ---
 
+## Testing
+
+The backend has **62 automated tests** with **~95% line coverage**:
+
+| Layer | What it covers | How |
+|---|---|---|
+| Unit (`src/test/java/.../unit`) | JWT signing and validation (including refusing weak secrets), image-content checks, the rate limiter (limits, per-user buckets, spoofed `X-Real-IP`), the email notifier | Plain JUnit 5, no Spring or database; runs in milliseconds |
+| Integration (`src/test/java/.../api`) | The HTTP API end to end: sign-up and login, listings (search, filters, hidden posts, ownership), saved books (6-book cap), messaging and unread counts, account deletion, privacy (no leaked emails), error responses, 401 vs 403 | Full Spring Boot app with MockMvc against a **real MySQL 8** started by [Testcontainers](https://testcontainers.com); the mailer is mocked |
+
+Every bug fixed in v2 has a regression test (visibility toggle, deleting bookmarked posts or accounts with data, leaked emails, expired tokens answering 403 instead of 401, …).
+
+```bash
+cd backend
+./mvnw test          # needs Docker running (for the MySQL container)
+```
+
+Coverage is written to `backend/target/site/jacoco/index.html`. In CI, GitLab shows the test results in the pipeline's **Tests** tab and the coverage percentage on the job; SonarCloud reads the same JaCoCo report.
+
+---
+
 ## CI/CD pipeline
 
 Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Five stages run on every push:
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
-| `test` | `backend-test` | `mvn test` | **Yes** |
+| `test` | `backend-test` | 62 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
 | `test` | `frontend-lint` | `npm ci` + `npm run lint` (ESLint) | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
@@ -344,7 +366,7 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Five stages run on every push:
 **Run the blocking checks locally before pushing:**
 
 ```bash
-(cd backend && ./mvnw -B test && ./mvnw -B -DskipTests package)
+(cd backend && ./mvnw -B test && ./mvnw -B -DskipTests package)   # Docker must be running
 (cd ktebna && npm ci && npm run lint && npm run build)
 ```
 
