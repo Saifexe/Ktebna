@@ -53,9 +53,15 @@ public class PostController {
     }
 
     @GetMapping("/{id}")
-    public PostResponse getOne(@PathVariable Long id) {
+    public PostResponse getOne(@AuthenticationPrincipal User currentUser, @PathVariable Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new ApiException("Post not found", HttpStatus.NOT_FOUND));
+        // Hidden listings are visible to their owner only; everyone else gets the
+        // same 404 as for a missing post, so ids can't be probed.
+        boolean owner = currentUser != null && post.getUser().getId().equals(currentUser.getId());
+        if (!post.isPublic() && !owner) {
+            throw new ApiException("Post not found", HttpStatus.NOT_FOUND);
+        }
         return toResponse(post);
     }
 
@@ -64,6 +70,10 @@ public class PostController {
     public Map<String, Object> getMyPosts(@AuthenticationPrincipal User currentUser,
                                            @RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "12") int size) {
+        // GET /api/posts/** is public in SecurityConfig, so check auth here.
+        if (currentUser == null) {
+            throw new ApiException("Authentication required", HttpStatus.UNAUTHORIZED);
+        }
         Page<Post> result = postRepository.findByUserIdOrderByCreatedAtDesc(
                 currentUser.getId(), PageRequest.of(page, size));
         return Map.of(

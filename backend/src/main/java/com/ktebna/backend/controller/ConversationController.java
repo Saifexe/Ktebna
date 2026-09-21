@@ -101,8 +101,9 @@ public class ConversationController {
         return new ConversationResponse(
                 conv.getId(), conv.getConversationTopic(), conv.getLastMessageContent(),
                 conv.getLastMessageSender(), conv.getUpdatedAt(),
-                new UserDto(f.getId(), f.getName(), f.getEmail(), f.getProfilePicture()),
-                new UserDto(s.getId(), s.getName(), s.getEmail(), s.getProfilePicture())
+                // Participants only need names and avatars, not email addresses.
+                new UserDto(f.getId(), f.getName(), null, f.getProfilePicture()),
+                new UserDto(s.getId(), s.getName(), null, s.getProfilePicture())
         );
     }
 

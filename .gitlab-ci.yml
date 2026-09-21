@@ -82,11 +82,20 @@ gitleaks:
   stage: security
 
   image:
-    name: zricethezav/gitleaks:latest
+    # Pinned: a scanner that changes under you makes gate results unreproducible.
+    name: zricethezav/gitleaks:v8.30.1
     entrypoint: [""]
 
+  variables:
+    # Full clone, so every commit is scanned (a secret deleted in a later
+    # commit is still exposed in history).
+    GIT_DEPTH: "0"
+
   script:
-    - gitleaks detect --source . --no-git --verbose --redact
+    # Current files (including untracked build output in the job workspace)...
+    - gitleaks dir . --verbose --redact
+    # ...and the entire git history. Reviewed false positives: .gitleaksignore
+    - gitleaks git . --verbose --redact --log-opts="--all"
 
 
 
@@ -94,7 +103,7 @@ trivy-fs-backend:
   stage: security
 
   image:
-    name: aquasec/trivy:latest
+    name: aquasec/trivy:0.74.0
     entrypoint: [""]
 
   script:
@@ -171,7 +180,7 @@ build-frontend:
 trivy-backend-image:
   stage: scan
   image:
-    name: aquasec/trivy:latest
+    name: aquasec/trivy:0.74.0
     entrypoint: [""]
   needs:
     - build-backend
@@ -183,7 +192,7 @@ trivy-backend-image:
 trivy-frontend-image:
   stage: scan
   image:
-    name: aquasec/trivy:latest
+    name: aquasec/trivy:0.74.0
     entrypoint: [""]
   needs:
     - build-frontend

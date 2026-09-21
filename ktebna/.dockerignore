@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 dist/
 .git/
 .env
@@ -6,3 +6,8 @@ dist/
 Dockerfile
 docker-compose.yml
 *.md
+
+# Never bake secrets or local tooling into images
+.env.*
+.vercel/
+*.log

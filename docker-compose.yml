@@ -1,3 +1,11 @@
+# Full local stack. Secrets come from the git-ignored .env at the repo root;
+# `docker compose` refuses to start if a required one is missing, instead of
+# silently falling back to a publicly known default.
+#
+# Every port is bound to 127.0.0.1, so nothing is reachable from other machines
+# on your network. To demo the app on your LAN, change only the frontend
+# mapping to "5173:80". Never expose MySQL, the backend, Prometheus or Grafana.
+
 services:
   mysql:
     image: mysql:8.0
@@ -6,14 +14,16 @@ services:
     environment:
       MYSQL_DATABASE: ktebna
       MYSQL_USER: ktebna_user
-      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeme_root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env}
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-changeme_root}"]
+      # Read the password from the container's own env instead of baking it
+      # into the healthcheck definition (visible in `docker inspect`).
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,12 +41,14 @@ services:
       DB_PORT: 3306
       DB_NAME: ktebna
       DB_USER: ktebna_user
-      DB_PASSWORD: ${DB_PASSWORD:-changeme}
-      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-secret-of-at-least-32-characters}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (at least 32 random characters)}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       DDL_AUTO: update
     ports:
-      - "8080:8080"
+      # Published only so the browser can load uploaded images from APP_BASE_URL.
+      - "127.0.0.1:8080:8080"
     volumes:
       - uploads_data:/app/uploads
 
@@ -52,34 +64,38 @@ services:
     depends_on:
       - backend
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
+
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.13.2
     container_name: ktebna-prometheus
     restart: unless-stopped
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     depends_on:
       - backend
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.1.3
     container_name: ktebna-grafana
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - prometheus
+
 volumes:
   mysql_data:
   uploads_data:

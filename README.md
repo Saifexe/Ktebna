@@ -198,9 +198,11 @@ flowchart TB
 ```bash
 git clone https://gitlab.com/saifexd-group/ktebna.git
 cd ktebna
-# create .env at the repo root first (see Configuration below)
+cp .env.example .env    # then fill in the required values (see Configuration)
 docker compose up -d --build
 ```
+
+All ports are bound to `127.0.0.1`, so the stack is reachable only from your own machine. Compose refuses to start if a required secret is missing from `.env`.
 
 | Service | URL | Notes |
 |---|---|---|
@@ -208,7 +210,7 @@ docker compose up -d --build
 | `backend` | http://localhost:8080 | Spring Boot API |
 | `mysql` | `localhost:3307` | MySQL 8.0 (container port 3306) |
 | `prometheus` | http://localhost:9090 | Scrapes `/actuator/prometheus` |
-| `grafana` | http://localhost:3000 | User `admin`, password from `GRAFANA_ADMIN_PASSWORD` |
+| `grafana` | http://localhost:3000 | User `admin`, password from `GRAFANA_ADMIN_PASSWORD` (applied when Grafana's volume is first created) |
 
 ### Option B: Local development (hot reload)
 
@@ -233,22 +235,23 @@ docker compose up -d --build
 
 ## Configuration
 
-Secrets live in `.env` files that are **never committed** (see `.gitignore`).
+Secrets live in `.env` files that are **never committed** (see `.gitignore`). Start from the templates: [`.env.example`](./.env.example) (repo root) and [`ktebna/.env.example`](./ktebna/.env.example). **No secret has a default:** Compose and the backend refuse to start without them. Generate values with `openssl rand -base64 32`.
 
 ### Backend (repo-root `.env`, read by Docker Compose, or exported before `mvn spring-boot:run`)
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `3306` / `ktebna` | MySQL location |
-| `DB_USER` / `DB_PASSWORD` | `ktebna_user` / *(none; required)* | MySQL credentials |
-| `DB_ROOT_PASSWORD` | *(none)* | MySQL root password (Compose only) |
-| `JWT_SECRET` | *(insecure placeholder)* | JWT signing key, **at least 32 characters** |
+| `DB_USER` / `DB_PASSWORD` | `ktebna_user` / **required** | MySQL credentials |
+| `DB_ROOT_PASSWORD` | **required** (Compose) | MySQL root password |
+| `JWT_SECRET` | **required** | JWT signing key, at least 32 random characters. The backend refuses to start with anything weaker. |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Browser origins allowed to call the API directly (the Nginx proxy doesn't need it) |
 | `JWT_EXPIRATION_MS` | `604800000` (7 days) | Token lifetime |
 | `APP_BASE_URL` | `http://localhost:8080` | Public base URL used to build image links |
 | `UPLOAD_DIR` | `./uploads` | Where uploaded images are stored |
 | `MAILER_URL` | external Render service | Email notification endpoint |
 | `DDL_AUTO` | `update` | Hibernate schema mode |
-| `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana login (Compose only) |
+| `GRAFANA_ADMIN_PASSWORD` | **required** (Compose) | Grafana admin login |
 
 ### Frontend (`ktebna/.env`, inlined at **build** time by Vite)
 
@@ -298,9 +301,11 @@ All endpoints are under `/api`. **Auth** means a valid `Authorization: Bearer <j
 | `POST` | `/account/profile-picture` | ✓ | Upload avatar (multipart `file`) |
 | `DELETE` | `/account` | ✓ | Delete account and everything that belongs to it |
 
+Hidden listings return `404` to everyone except their owner. Email addresses are only returned to their owner. Abuse-prone endpoints are rate-limited and answer `429` with `Retry-After`.
+
 **Listing fields** (multipart): `bookName` (required), `bookAuthor`, `bookCategory`, `bookCondition` (`likeNew` · `gentlyRead` · `wellLoved` · `collectors`), `bookDealType` (`sell` · `exchange` · `donate`), `bookDeal` (price or swap wish), `bookDescription`, `bookLocation` (city), `pickupLat`, `pickupLng`, `pickupSpot`, `isPublic`, `image`.
 
-Images can be up to **10 MB** (enforced by both Nginx and Spring). Uploaded images are served from `/uploads/**`; health and metrics from `/actuator/health` and `/actuator/prometheus`.
+Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by file name), up to **10 MB** (enforced by both Nginx and Spring). Uploaded images are served from `/uploads/**`; health and metrics from `/actuator/health` and `/actuator/prometheus`.
 
 ---
 
@@ -313,7 +318,7 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Five stages run on every push:
 | `test` | `backend-test` | `mvn test` | **Yes** |
 | `test` | `frontend-lint` | `npm ci` + `npm run lint` (ESLint) | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
-| `security` | `gitleaks` | Secret scan of the checked-out files | **Yes** |
+| `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
 | `security` | `trivy-fs-backend` | Dependency vulnerabilities (HIGH/CRITICAL flagged) | No (`allow_failure`) |
 | `build` | `build-backend` | Docker build + push (`:<short-sha>` and `:latest`) | **Yes** |
 | `build` | `build-frontend` | Docker build (runs `npm run build`) + push | **Yes** |

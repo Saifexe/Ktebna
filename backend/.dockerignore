@@ -6,3 +6,10 @@ uploads/
 .mvn/
 Dockerfile
 docker-compose.yml
+
+# Never bake secrets or local data into images
+.env
+.env.*
+*.log
+*.sql
+backups/

@@ -9,8 +9,8 @@ This project uses GitLab CI/CD to run automated quality and security checks befo
 | `test` | `backend-test` | Maven | Runs backend tests | Fails on test errors |
 | `test` | `frontend-lint` | ESLint | Checks frontend code quality | Fails on lint errors |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud | Static code analysis | Advisory, allowed to fail |
-| `security` | `gitleaks` | Gitleaks | Detects committed secrets | Fails on detected secrets |
-| `security` | `trivy-fs-backend` | Trivy FS | Scans backend dependencies/filesystem | Advisory, allowed to fail |
+| `security` | `gitleaks` | Gitleaks v8.30.1 | Detects secrets in the working tree and the full git history | Fails on detected secrets |
+| `security` | `trivy-fs-backend` | Trivy 0.74.0 FS | Scans backend dependencies/filesystem | Advisory, allowed to fail |
 | `build` | `build-backend` | Docker | Builds and pushes backend image | Fails on build/push errors |
 | `build` | `build-frontend` | Docker | Builds and pushes frontend image | Fails on build/push errors |
 | `scan` | `trivy-backend-image` | Trivy image | Scans backend Docker image | Advisory, allowed to fail |

@@ -1,8 +1,21 @@
-﻿# ===== Secrets =====
+# ===== Secrets =====
+# Any .env file anywhere (.env, .env.local, .env.production, …) except the
+# committed templates.
 .env
-backend/.env
-ktebna/.env
+.env.*
 *.env.local
+!.env.example
+!**/.env.example
+# Keys, certificates, keystores
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
 
 # ===== Node / React frontend =====
 node_modules/
@@ -15,7 +28,8 @@ yarn-error.log*
 
 # ===== Java / Spring Boot backend =====
 backend/target/
-backend/uploads/
+# User uploads (personal photos) and runtime data, wherever they end up
+uploads/
 *.class
 *.jar
 !backend/.mvn/wrapper/maven-wrapper.jar
@@ -47,7 +61,13 @@ desktop.ini
 # ===== Generated analysis =====
 graphify-out/
 
-graphify-out/
-
 # ===== Database dumps (contain user emails + password hashes) =====
 backups/
+*.sql
+*.sql.gz
+*.dump
+
+# ===== Local tooling =====
+.vercel/
+.claude/
+

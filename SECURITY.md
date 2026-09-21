@@ -2,7 +2,7 @@
 
 This document covers Ktebna's security gates, vulnerability remediation history, application-level security controls, and credential management practices. The per-job pipeline policy lives in **[docs/SECURITY_GATES.md](./docs/SECURITY_GATES.md)**.
 
-**Last reviewed:** 21 Sep 2026 (v2 release, commit `bb09eb8` and follow-ups). Pipeline green; both release images report **0 HIGH / 0 CRITICAL** vulnerabilities.
+**Last reviewed:** 21 Sep 2026 (v2 release plus the repository hardening pass). Pipeline green; both release images report **0 HIGH / 0 CRITICAL** vulnerabilities; full git history scanned with no real secrets found.
 
 ---
 
@@ -25,11 +25,11 @@ Automated gates run on every push through GitLab CI/CD (SonarCloud runs on `main
 |---|---|---|---|
 | Unit tests / lint | Maven, ESLint | Build breaks, lint errors | **Blocking** |
 | Static Application Security Testing (SAST) | SonarCloud | Code quality issues, security hotspots, code smells | Non-blocking (`allow_failure: true`) |
-| Secret scanning | Gitleaks (`--no-git`) | Credentials, tokens, keys present in the checked-out files | **Blocking** |
+| Secret scanning | Gitleaks v8.30.1 | Credentials, tokens, keys in the checked-out files **and in every commit of the history** (`GIT_DEPTH: 0`) | **Blocking** |
 | Filesystem vulnerability scanning | Trivy FS | Known CVEs in backend dependencies (offline DB) | Non-blocking; job fails on HIGH/CRITICAL and shows as a warning |
 | Container image vulnerability scanning | Trivy image | Known CVEs in the built backend and frontend images | Non-blocking; job fails on HIGH/CRITICAL and shows as a warning |
 
-Gitleaks is intentionally the one hard-blocking *security* gate: a leaked secret is treated as requiring immediate rotation, not a warning to review later.
+Gitleaks is intentionally the one hard-blocking *security* gate: a leaked secret is treated as requiring immediate rotation, not a warning to review later. Reviewed false positives are suppressed one by one, by fingerprint, in [`.gitleaksignore`](./.gitleaksignore). Scanner images are pinned (`gitleaks:v8.30.1`, `trivy:0.74.0`), so gate results are reproducible.
 
 A Trivy job showing **"Failed" with a warning icon** means the job found HIGH/CRITICAL findings, not that the pipeline broke. It is treated as a ticket to fix promptly (see the log below), not something to ignore.
 
@@ -62,6 +62,33 @@ A Trivy job showing **"Failed" with a warning icon** means the job found HIGH/CR
 - **Upload limit mismatch:** Nginx's default `client_max_body_size` (1 MB) returned `413` for most phone photos before they reached Spring (limit 10 MB). This only affected Docker/Kubernetes, not local dev. Fixed in `ktebna/nginx.conf` (`client_max_body_size 10m` on `/api/`). Verified: a 1.98 MB image uploads and is served back byte-for-byte; an 11 MB file is still rejected with `413`.
 - **Version disclosure:** Nginx advertised its exact version in headers and error pages. Fixed with `server_tokens off`.
 
+### 21 Sep 2026: Repository and runtime hardening
+
+A full audit of the repository, its history, Docker Compose, the Kubernetes manifests and the API.
+
+**Git history:** all 71 commits scanned with Gitleaks 8.30.1. There were 4 hits, all false positives: file-metadata entries in a once-committed `graphify-out/cache/stat-index.json`. No `.env`, dump, key or certificate was ever committed, and none of the real secret values in the local `.env` appear anywhere in history.
+
+| # | Finding | Risk | Fix |
+|---|---|---|---|
+| 1 | Compose, `application.properties` and k8s fell back to `changeme` passwords, Grafana `admin/admin`, and a **publicly known JWT secret** when `.env` was missing | Anyone could forge login tokens or log in with default credentials | Compose uses required `${VAR:?}` variables and refuses to start; Spring has no defaults for `DB_PASSWORD`/`JWT_SECRET`; `JwtUtil` refuses secrets under 32 bytes or equal to the old placeholder |
+| 2 | MySQL (3307), backend and actuator (8080), Prometheus (9090) and Grafana (3000) published on `0.0.0.0` | Reachable from any machine on the same network; Grafana was still `admin/admin` | Every Compose port is bound to `127.0.0.1` |
+| 3 | `k8s/*.yaml` contained Secret objects with placeholder values | `kubectl apply -f k8s/` would silently overwrite real credentials with `changeme` | Secret objects removed; `k8s/README.md` creates them with random values |
+| 4 | MySQL root password baked into the Compose healthcheck command | Visible in `docker inspect` | Healthcheck reads `$MYSQL_ROOT_PASSWORD` inside the container |
+| 5 | Every public listing (and conversations, and `/api/users/{id}`) returned users' **email addresses** | Anyone could harvest all users' emails without logging in | Emails are returned only to their owner (`/api/auth/me`, own `/api/users/{id}`) |
+| 6 | Hidden listings readable by id | Private data exposure | `GET /api/posts/{id}` returns `404` unless public or requested by the owner |
+| 7 | CORS allowed every origin with credentials | Any website could call the API from a victim's browser | Explicit allow-list (`CORS_ALLOWED_ORIGINS`, default `http://localhost:5173`) |
+| 8 | No rate limiting | Password guessing, account and message spam | Nginx `limit_req` (10/min on `/api/auth/`, 20/s per client on `/api/`) and an in-app limiter (login 10/min, register 5/min per IP; messages 30/min, listings 10/min per user) |
+| 9 | No browser security headers | XSS and clickjacking impact | CSP, `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` |
+| 10 | Uploads trusted the client's file name and type | Non-image content stored and served from our origin | Magic-byte check (JPEG/PNG/GIF/WebP only); the extension comes from the detected format |
+| 11 | Unhandled errors returned `ex.getMessage()` to clients | Leaked SQL, constraint names, file paths | Generic message to the client, full error in the server log; Spring's own 4xx errors keep their status |
+| 12 | Login skipped BCrypt for unknown emails | Timing attack revealed which emails are registered | A dummy BCrypt check makes both paths cost the same |
+| 13 | CI scanned only the working tree; scanner images floated on `:latest` | Secrets in old commits went unnoticed; unreproducible results | Gitleaks scans the full history; Gitleaks and Trivy images pinned |
+| 14 | `.gitignore` missed `.env.*`, keys/certs, `*.sql`, and uploads outside `backend/` | Easy to commit a secret or personal data by accident | Broadened patterns (templates like `.env.example` stay tracked); `.dockerignore` files exclude `.env*` too |
+
+**Local credentials rotated.** The local `.env` used 4-character database passwords and had no Grafana password. The `ktebna_user` passwords (XAMPP MariaDB and Docker MySQL) and the Docker MySQL `root` password were replaced with 32-character random values; each was verified before being written to `.env`. The Grafana admin password was changed from `admin` through its API.
+
+**Verification:** Compose rebuilt from the hardened tree, with all services healthy and every port on `127.0.0.1`. An 18-check attack script passed: headers, fake-image upload rejected, hidden listing `404` for others, no emails in the feed, generic errors, CORS refusal, `429` on brute-force login at both Nginx and the backend. The backend refuses to start with the old placeholder, a short, or a missing `JWT_SECRET`. Every page loads in Chrome with no CSP violations. Both images still report 0 HIGH/CRITICAL.
+
 ---
 
 ## Application security controls
@@ -69,27 +96,30 @@ A Trivy job showing **"Failed" with a warning icon** means the job found HIGH/CR
 | Area | Control |
 |---|---|
 | Authentication | Email + password (BCrypt hashes); stateless JWT (HMAC-SHA, HS256 or stronger depending on key length; 7-day lifetime) sent as `Authorization: Bearer`. The signing secret comes from `JWT_SECRET` (at least 32 characters). |
-| Authorization | Ownership checks on every listing mutation (edit, visibility, delete → `403` otherwise); participant checks on every conversation, message, and mark-read call. |
+| Authorization | Ownership checks on every listing mutation (edit, visibility, delete → `403` otherwise) and on reading hidden listings (`404`); participant checks on every conversation, message, and mark-read call. |
+| Privacy | Email addresses are only ever returned to their owner. |
+| Abuse limits | Rate limits at Nginx and in the backend (see finding 8 above); `429` with `Retry-After`. |
+| Browser | CSP and related security headers on every page; `server_tokens off`. |
+| Errors | Clients get generic messages; details are logged server-side. |
 | Account deletion | Deletes the user's bookmarks, bookmarks others made on their posts, messages and conversations they took part in, their posts, then the user, in one transaction (fixed in v2; it previously failed on foreign keys). |
-| Uploads | Stored under random UUID file names, never the client's name. Size is capped at 10 MB by both Nginx and Spring. |
+| Uploads | Only real JPEG/PNG/GIF/WebP files (checked by magic bytes), stored under random UUID names with an extension derived from the content. Size is capped at 10 MB by both Nginx and Spring. |
 | Maps | Pickup pins are optional and user-chosen; the UI tells sellers to pick a public meeting place and never a home address. Coordinates outside valid ranges are discarded server-side. |
 | Outbound calls | The mailer is called asynchronously with 10 s connect / 90 s read timeouts, so a slow or unreachable mailer can't tie up request threads or delay chat messages. |
-| Secrets in config | `.env` files are git-ignored; `.env.example` holds empty placeholders; database dumps (`backups/`) are git-ignored because they contain emails and password hashes. |
+| Secrets in config | No secret has a default value anywhere in the repository; Compose and Spring refuse to start without them. `.env*` files (except the empty `.env.example` templates), keys, certificates, SQL dumps and uploads are git-ignored and excluded from Docker build contexts. |
+| Network exposure | Compose publishes every port on `127.0.0.1` only; in Kubernetes, MySQL and the backend are `ClusterIP`. |
 | Google Maps key | Browser keys are public by design. It must be **restricted by HTTP referrer** in Google Cloud Console and stored as a **masked** CI/CD variable. |
 
 ---
 
 ## Known gaps and recommended hardening
 
-These are known, not yet addressed, and ordered roughly by value:
+Six of the seven gaps listed in the previous review were fixed in the hardening pass above. What remains:
 
-1. **Private listings are readable by id.** `GET /api/posts/{id}` returns hidden posts to anyone who knows the id; only the frontend hides them. Return `404` unless the caller is the owner.
-2. **CORS is fully open with credentials** (`allowedOriginPatterns("*")`). Restrict it to the real frontend origin(s).
-3. **No rate limiting** on `/api/auth/login`, `/api/auth/register`, or `/api/messages`. Add throttling at Nginx or with a filter.
-4. **No browser security headers** (CSP, `X-Content-Type-Options`, `Referrer-Policy`, frame protection) on the Nginx site. Add them; the CSP must allow Google Fonts and, if enabled, Google Maps.
-5. **JWT stored in `localStorage`,** which is readable by any script on the page. It is acceptable for this project's threat model; move to an `HttpOnly` cookie if XSS risk grows.
-6. **Upload content isn't validated.** Only size and emptiness are checked; check that files really are images (magic bytes) before storing.
-7. **`GET /api/users/{id}` returns email addresses** to any authenticated user. Drop the email from public user lookups.
+1. **JWT stored in `localStorage`,** which is readable by any script on the page. The CSP now limits which scripts can run, which lowers the risk. Moving to an `HttpOnly` cookie would remove it, but needs CSRF protection in return.
+2. **The CSP's Google Maps allowances are unverified,** because no Maps key was configured when it was tested. After setting `VITE_GOOGLE_MAPS_API_KEY`, open a page with a map and check the browser console for "Refused to…" messages.
+3. **Rate limits are in-memory, per instance.** That fits the single-replica deployments here; scaling the backend out would need a shared store (e.g. Redis) or edge-only limiting.
+4. **Actuator metrics are unauthenticated** (`/actuator/prometheus`). They are only reachable on `127.0.0.1` (Compose) or inside the cluster (Kubernetes), and are not proxied by Nginx. Keep it that way, or add auth before exposing the backend directly.
+5. **Traffic between the backend and MySQL is unencrypted** (`useSSL=false`). It stays on the private Docker network or inside the cluster; enable TLS if the database ever moves to another host.
 
 ---
 

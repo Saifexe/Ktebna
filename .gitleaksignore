@@ -1,0 +1,5 @@
+# Reviewed false positives (21 Sep 2026): graphify-out/cache/stat-index.json was
+# committed once in e4dcc44b (the folder is git-ignored now). The flagged values
+# are file-metadata entries keyed by source file names such as
+# "authcontroller.java", not credentials. Suppressed by exact fingerprint only.
+e4dcc44ba78fb9d61e615e1158656e6983cc4343:graphify-out/cache/stat-index.json:generic-api-key:1

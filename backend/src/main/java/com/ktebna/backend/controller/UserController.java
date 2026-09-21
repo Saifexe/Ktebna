@@ -31,10 +31,12 @@ public class UserController {
     private final FileStorageService fileStorageService;
 
     @GetMapping("/users/{id}")
-    public UserDto getUser(@PathVariable Long id) {
+    public UserDto getUser(@AuthenticationPrincipal User currentUser, @PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
-        return toDto(user);
+        // Email is only returned to the account owner.
+        boolean self = currentUser != null && currentUser.getId().equals(id);
+        return new UserDto(user.getId(), user.getName(), self ? user.getEmail() : null, user.getProfilePicture());
     }
 
     @PutMapping("/account/name")

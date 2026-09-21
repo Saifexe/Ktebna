@@ -37,10 +37,12 @@ public class AuthController {
 
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest req) {
-        User user = userRepository.findByEmail(req.getEmail().toLowerCase())
-                .orElseThrow(() -> new ApiException("Invalid email or password", HttpStatus.UNAUTHORIZED));
+        User user = userRepository.findByEmail(req.getEmail().toLowerCase()).orElse(null);
 
-        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+        // Always run one BCrypt check so response time doesn't reveal whether
+        // the email is registered.
+        String hash = user != null ? user.getPassword() : dummyHash();
+        if (!passwordEncoder.matches(req.getPassword(), hash) || user == null) {
             throw new ApiException("Invalid email or password", HttpStatus.UNAUTHORIZED);
         }
 
@@ -54,6 +56,15 @@ public class AuthController {
             throw new ApiException("Not authenticated", HttpStatus.UNAUTHORIZED);
         }
         return toDto(user);
+    }
+
+    private volatile String dummyHash;
+
+    private String dummyHash() {
+        if (dummyHash == null) {
+            dummyHash = passwordEncoder.encode("timing-equalizer-" + System.nanoTime());
+        }
+        return dummyHash;
     }
 
     private UserDto toDto(User user) {

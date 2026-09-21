@@ -34,7 +34,8 @@ public class PostResponse {
 
     public static PostResponse from(Post post) {
         User u = post.getUser();
-        UserDto userDto = new UserDto(u.getId(), u.getName(), u.getEmail(), u.getProfilePicture());
+        // Listings are public: never include the seller's email address.
+        UserDto userDto = new UserDto(u.getId(), u.getName(), null, u.getProfilePicture());
         return new PostResponse(
                 post.getId(), post.getBookName(), post.getBookAuthor(), post.getBookCategory(),
                 post.getBookDeal(), post.getBookDealType(), post.getBookImage(), post.getBookLocation(),
