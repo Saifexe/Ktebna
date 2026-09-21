@@ -14,6 +14,9 @@ RUN npm run build
 
 # --- Run stage ---
 FROM nginx:1.30.4-alpine3.24
+# Pull Alpine security fixes released after the base image was built
+# (e.g. util-linux/libuuid CVE-2026-53612 and related, fixed in 2.42.3-r1).
+RUN apk upgrade --no-cache
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
