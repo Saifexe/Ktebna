@@ -41,7 +41,7 @@ The intended production gate is:
 
 | Check | Result |
 | --- | --- |
-| GitLab pipeline on `main` (`bb09eb8`) | Passed |
+| GitLab pipeline #2868466261 on `main` (`2a24f62`) | **All 9 jobs passed, none advisory-failed**: first run with Gitleaks scanning the full history (`GIT_DEPTH: 0`) and with pinned scanner images; both Trivy image scans clean in CI (5 min 23 s) |
 | Backend image (`eclipse-temurin:17-jre-jammy` + `backend.jar`) | Builds; **0 HIGH / 0 CRITICAL** (68 LOW/MEDIUM in the OS base, 4 MEDIUM in the jar) |
 | Frontend image (`nginx:1.30.4-alpine3.24` + static build) | Builds; **0 HIGH / 0 CRITICAL**, 0 LOW/MEDIUM |
 | Docker Compose stack (mysql, backend, frontend, prometheus, grafana) | All five containers up; backend `/actuator/health` = `UP`; Prometheus target `ktebna-backend` = `up`; Grafana healthy |

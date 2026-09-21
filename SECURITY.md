@@ -2,7 +2,7 @@
 
 This document covers Ktebna's security gates, vulnerability remediation history, application-level security controls, and credential management practices. The per-job pipeline policy lives in **[docs/SECURITY_GATES.md](./docs/SECURITY_GATES.md)**.
 
-**Last reviewed:** 21 Sep 2026 (v2 release plus the repository hardening pass). Pipeline green; both release images report **0 HIGH / 0 CRITICAL** vulnerabilities; full git history scanned with no real secrets found.
+**Last reviewed:** 21 Sep 2026 (v2 release plus the repository hardening pass). Pipeline #2868466261 (`2a24f62`): all 9 jobs green with no advisory failures; both release images **0 HIGH / 0 CRITICAL**; full git history scanned with no real secrets found.
 
 ---
 
