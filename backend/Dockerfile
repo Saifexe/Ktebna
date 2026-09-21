@@ -9,7 +9,12 @@ RUN mvn clean package -DskipTests -B
 # --- Run stage ---
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
-RUN mkdir -p /app/uploads
+# Run as an unprivileged user; only the uploads directory is writable by it.
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /app/uploads \
+    && chown app:app /app/uploads
 COPY --from=build /app/target/backend.jar app.jar
+USER 10001:10001
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

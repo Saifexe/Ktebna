@@ -10,11 +10,13 @@ import { conditionTone, dealLabel, dealTone, normalizeDealType } from "../lib/li
 const BookCard = ({ post, saved, onToggleSave }) => {
   const { t } = useTranslation();
   const type = normalizeDealType(post.bookDealType);
-  const badge = post.bookCondition
-    ? { tone: conditionTone(post.bookCondition), label: t(`conditions.${post.bookCondition}`) }
-    : type
-      ? { tone: dealTone(type), label: t(`deal.${type}`) }
-      : null;
+  // Condition wins over deal type; old listings without either get no badge.
+  let badge = null;
+  if (post.bookCondition) {
+    badge = { tone: conditionTone(post.bookCondition), label: t(`conditions.${post.bookCondition}`) };
+  } else if (type) {
+    badge = { tone: dealTone(type), label: t(`deal.${type}`) };
+  }
 
   return (
     <div className="group relative">

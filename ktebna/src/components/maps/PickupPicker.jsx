@@ -52,6 +52,12 @@ const PlaceSearch = ({ city, onSelect }) => {
   return <div ref={containerRef} className="min-h-11" />;
 };
 
+// Street level for a pin, city level for a chosen city, else all of Tunisia.
+const initialZoom = (pinned, city) => {
+  if (pinned) return 16;
+  return cityCenter(city) ? 12 : 6;
+};
+
 const PickerMap = ({ city, value, onChange }) => {
   const map = useMap();
   const pinned = hasPin(value.lat, value.lng);
@@ -72,7 +78,7 @@ const PickerMap = ({ city, value, onChange }) => {
     <Map
       mapId={MAP_ID}
       defaultCenter={pinned ? { lat: value.lat, lng: value.lng } : cityCenter(city) || TUNISIA_CENTER}
-      defaultZoom={pinned ? 16 : cityCenter(city) ? 12 : 6}
+      defaultZoom={initialZoom(pinned, city)}
       gestureHandling="cooperative"
       disableDefaultUI
       zoomControl

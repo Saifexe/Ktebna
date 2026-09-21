@@ -39,6 +39,16 @@ class ListingApiTest extends ApiTestBase {
     }
 
     @Test
+    void bookNameIsRequired() throws Exception {
+        Account seller = register("NoName");
+
+        mvc.perform(listing(HttpMethod.POST, "/api/posts", seller, Map.of("bookLocation", "Sousse")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(listing(HttpMethod.POST, "/api/posts", seller, Map.of("bookName", "   ")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void outOfRangeCoordinatesAreDiscarded() throws Exception {
         Account seller = register("Pin");
         JsonNode post = createPost(seller, unique("Pin"), true, Map.of("pickupLat", "999", "pickupLng", "10", "pickupSpot", "Nowhere"));

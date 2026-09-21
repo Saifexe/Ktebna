@@ -121,22 +121,28 @@ const Sell = () => {
     setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
+  // One checker per step; each returns { field: message } for what's missing.
+  const stepChecks = {
+    1: (req) => ({
+      image: !preview && t("sell.photoRequired"),
+      bookName: !form.bookName.trim() && req,
+      bookCategory: !form.bookCategory && req,
+    }),
+    2: (req) => ({
+      bookCondition: !form.bookCondition && req,
+      bookDealType: !form.bookDealType && req,
+      // A price or swap wish is needed unless the book is given away.
+      bookDeal: Boolean(form.bookDealType) && form.bookDealType !== "donate" && !form.bookDeal.trim() && req,
+    }),
+    3: (req) => ({ bookLocation: !form.bookLocation && req }),
+  };
+
   const validate = (s) => {
-    const req = t("sell.required");
-    const e = {};
-    if (s === 1) {
-      if (!preview) e.image = t("sell.photoRequired");
-      if (!form.bookName.trim()) e.bookName = req;
-      if (!form.bookCategory) e.bookCategory = req;
-    }
-    if (s === 2) {
-      if (!form.bookCondition) e.bookCondition = req;
-      if (!form.bookDealType) e.bookDealType = req;
-      if (form.bookDealType && form.bookDealType !== "donate" && !form.bookDeal.trim()) e.bookDeal = req;
-    }
-    if (s === 3 && !form.bookLocation) e.bookLocation = req;
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    const found = Object.fromEntries(
+      Object.entries(stepChecks[s](t("sell.required"))).filter(([, message]) => message),
+    );
+    setErrors(found);
+    return Object.keys(found).length === 0;
   };
 
   const next = () => {
@@ -182,6 +188,8 @@ const Sell = () => {
   };
 
   const stepTitles = [t("sell.step1"), t("sell.step2"), t("sell.step3")];
+  let submitLabel = isEdit ? t("sell.saveChanges") : t("sell.publish");
+  if (submitting) submitLabel = t("sell.publishing");
   const previewPost = { ...form, id: 0, bookImage: preview, user };
 
   return (
@@ -386,7 +394,7 @@ const Sell = () => {
             ) : (
               <Button className="h-12 flex-1" onClick={submit} disabled={submitting}>
                 {submitting ? <Loader2 className="animate-spin" /> : <Send className="rtl:-scale-x-100" />}
-                {submitting ? t("sell.publishing") : isEdit ? t("sell.saveChanges") : t("sell.publish")}
+                {submitLabel}
               </Button>
             )}
           </div>

@@ -65,7 +65,8 @@ export const NotificationsProvider = ({ children }) => {
   // "(3) Ktebna" in the browser tab while there are unread messages.
   useEffect(() => {
     const base = document.title.replace(/^\(\d+\+?\)\s*/, "");
-    document.title = total > 0 ? `(${total > 8 ? "9+" : total}) ${base}` : base;
+    const label = total > 8 ? "9+" : String(total);
+    document.title = total > 0 ? `(${label}) ${base}` : base;
   }, [total]);
 
   const countFor = useCallback(

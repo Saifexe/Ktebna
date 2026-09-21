@@ -1,6 +1,5 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 import { booksData } from "../data/booksData"; // Import the books data
 
 const Book = () => {

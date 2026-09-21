@@ -30,6 +30,11 @@ yarn-error.log*
 backend/target/
 # User uploads (personal photos) and runtime data, wherever they end up
 uploads/
+# Local cover images used to fill in listings through the app (not source code)
+ktebna/src/books/*.jpg
+ktebna/src/books/*.jpeg
+ktebna/src/books/*.png
+ktebna/src/books/*.webp
 *.class
 *.jar
 !backend/.mvn/wrapper/maven-wrapper.jar

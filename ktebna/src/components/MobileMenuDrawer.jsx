@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { Bookmark, BookOpen, CirclePlus, Info, LibraryBig, Mail, MessageCircle, X } from "lucide-react";
@@ -9,6 +10,14 @@ const MobileMenuDrawer = ({ open, onClose }) => {
   const { t, i18n } = useTranslation();
   const rtl = i18n.dir() === "rtl";
   const offset = rtl ? 320 : -320;
+
+  // Keyboard users can close the menu with Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   const links = [
     { to: "/", label: t("nav.browse"), icon: BookOpen, end: true },
@@ -23,23 +32,29 @@ const MobileMenuDrawer = ({ open, onClose }) => {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm md:hidden"
-          onClick={onClose}
-        >
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop: a real button so it's reachable and labelled for assistive tech. */}
+          <motion.button
+            type="button"
+            aria-label={t("catalog.clear")}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-sm"
+            onClick={onClose}
+          />
           <motion.div
             initial={{ x: offset }}
             animate={{ x: 0 }}
             exit={{ x: offset }}
             transition={{ type: "spring", stiffness: 260, damping: 30 }}
             className="absolute inset-y-0 start-0 w-[85%] max-w-xs border-e bg-background p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("header.menu")}
           >
-            <div className="mb-6 flex items-center justify-between" onClick={onClose}>
-              <Brand />
+            <div className="mb-6 flex items-center justify-between">
+              <Brand onClick={onClose} />
               <button
                 className="grid size-9 place-items-center rounded-md hover:bg-accent"
                 onClick={onClose}
@@ -53,25 +68,25 @@ const MobileMenuDrawer = ({ open, onClose }) => {
               {links.map(({ to, label, icon, end }) => {
                 const Icon = icon;
                 return (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={end}
-                  onClick={onClose}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition-colors ${
-                      isActive ? "bg-accent text-accent-foreground" : "hover:bg-muted"
-                    }`
-                  }
-                >
-                  <Icon className="size-4" />
-                  {label}
-                </NavLink>
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={end}
+                    onClick={onClose}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition-colors ${
+                        isActive ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                      }`
+                    }
+                  >
+                    <Icon className="size-4" />
+                    {label}
+                  </NavLink>
                 );
               })}
             </nav>
           </motion.div>
-        </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );

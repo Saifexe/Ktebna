@@ -67,6 +67,12 @@ const Profile = () => {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
   const settingsRef = useRef(null);
+  const nameRef = useRef(null);
+
+  // Focus the name field when editing starts (instead of autoFocus).
+  useEffect(() => {
+    if (editing) nameRef.current?.focus();
+  }, [editing]);
 
   useEffect(() => setName(user.name), [user.name]);
 
@@ -132,6 +138,82 @@ const Profile = () => {
     }
   };
 
+  const renderListings = () => {
+    if (isLoading) return <Spinner />;
+    if (posts.length === 0) {
+      return (
+        <div className="mt-3">
+          <EmptyState
+            icon={BookPlus}
+            title={t("profile.noListings")}
+            text={t("profile.noListingsText")}
+            action={<Button to="/sell">{t("nav.sell")}</Button>}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="mt-3 space-y-3">
+        {posts.map((post) => (
+          <div key={post.id} className="flex gap-4 rounded-lg border bg-card p-3">
+            <Link to={`/book/${post.id}`} className="shrink-0">
+              <BookCover src={post.bookImage} alt={post.bookName} className="h-28 w-20 rounded" />
+            </Link>
+            <div className="min-w-0 flex-1">
+              <Badge tone={post.isPublic ? "trust" : "muted"}>
+                {post.isPublic ? t("profile.public") : t("profile.private")}
+              </Badge>
+              <Link to={`/book/${post.id}`}>
+                <h3 className="mt-2 truncate font-display text-xl font-bold hover:text-primary">
+                  {post.bookName}
+                </h3>
+              </Link>
+              {post.bookAuthor && (
+                <p className="truncate text-sm text-muted-foreground">{post.bookAuthor}</p>
+              )}
+              <p className="mt-2 truncate font-bold text-primary">{dealLabel(post, t)}</p>
+            </div>
+            <div className="flex flex-col items-end justify-between">
+              <span className="whitespace-nowrap text-xs text-muted-foreground">
+                {timeAgo(post.createdAt, i18n.language)}
+              </span>
+              <div className="flex">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => visibility.mutate({ id: post.id, isPublic: !post.isPublic })}
+                  aria-label={post.isPublic ? t("profile.hide") : t("profile.show")}
+                  title={post.isPublic ? t("profile.hide") : t("profile.show")}
+                >
+                  {post.isPublic ? <EyeOff /> : <Eye />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  to={`/sell/${post.id}`}
+                  aria-label={t("profile.edit")}
+                  title={t("profile.edit")}
+                >
+                  <Edit3 />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setPostToDelete(post)}
+                  aria-label={t("profile.delete")}
+                  title={t("profile.delete")}
+                  className="hover:text-destructive"
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-4">
       <section className="rounded-lg border bg-card p-6 text-center">
@@ -160,7 +242,7 @@ const Profile = () => {
             className="mx-auto mt-3 flex max-w-sm gap-2"
           >
             <input
-              autoFocus
+              ref={nameRef}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("profile.namePlaceholder")}
@@ -283,77 +365,7 @@ const Profile = () => {
 
           <h2 className="mt-7 font-display text-2xl font-bold">{t("profile.activeListings")}</h2>
 
-          {isLoading ? (
-            <Spinner />
-          ) : posts.length === 0 ? (
-            <div className="mt-3">
-              <EmptyState
-                icon={BookPlus}
-                title={t("profile.noListings")}
-                text={t("profile.noListingsText")}
-                action={<Button to="/sell">{t("nav.sell")}</Button>}
-              />
-            </div>
-          ) : (
-            <div className="mt-3 space-y-3">
-              {posts.map((post) => (
-                <div key={post.id} className="flex gap-4 rounded-lg border bg-card p-3">
-                  <Link to={`/book/${post.id}`} className="shrink-0">
-                    <BookCover src={post.bookImage} alt={post.bookName} className="h-28 w-20 rounded" />
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    <Badge tone={post.isPublic ? "trust" : "muted"}>
-                      {post.isPublic ? t("profile.public") : t("profile.private")}
-                    </Badge>
-                    <Link to={`/book/${post.id}`}>
-                      <h3 className="mt-2 truncate font-display text-xl font-bold hover:text-primary">
-                        {post.bookName}
-                      </h3>
-                    </Link>
-                    {post.bookAuthor && (
-                      <p className="truncate text-sm text-muted-foreground">{post.bookAuthor}</p>
-                    )}
-                    <p className="mt-2 truncate font-bold text-primary">{dealLabel(post, t)}</p>
-                  </div>
-                  <div className="flex flex-col items-end justify-between">
-                    <span className="whitespace-nowrap text-xs text-muted-foreground">
-                      {timeAgo(post.createdAt, i18n.language)}
-                    </span>
-                    <div className="flex">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => visibility.mutate({ id: post.id, isPublic: !post.isPublic })}
-                        aria-label={post.isPublic ? t("profile.hide") : t("profile.show")}
-                        title={post.isPublic ? t("profile.hide") : t("profile.show")}
-                      >
-                        {post.isPublic ? <EyeOff /> : <Eye />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        to={`/sell/${post.id}`}
-                        aria-label={t("profile.edit")}
-                        title={t("profile.edit")}
-                      >
-                        <Edit3 />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setPostToDelete(post)}
-                        aria-label={t("profile.delete")}
-                        title={t("profile.delete")}
-                        className="hover:text-destructive"
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {renderListings()}
         </>
       )}
 

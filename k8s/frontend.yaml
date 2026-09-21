@@ -24,6 +24,9 @@ spec:
           # into a deploy stage and this image: field.
           image: registry.gitlab.com/saifexd-group/ktebna/frontend@sha256:3b4e0f9ff2d0f6f104c68b37ff9f0131f09beac188e0c8500c33c2bc0e128bd8
           imagePullPolicy: IfNotPresent
+          # The pinned digest predates the non-root image and still listens on 80.
+          # Images built from the current Dockerfile listen on 8080: when re-pinning,
+          # change containerPort, both probe ports and the Service targetPort to 8080.
           ports:
             - containerPort: 80
           readinessProbe:

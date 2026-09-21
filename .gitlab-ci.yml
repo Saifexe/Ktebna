@@ -98,6 +98,7 @@ sonarcloud-check:
       -Dsonar.exclusions=backend/src/test/**,**/node_modules/**,**/dist/**
       -Dsonar.java.binaries=backend/target/classes
       -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
+      -Dsonar.cpd.exclusions=ktebna/src/locales/**,ktebna/src/i18n.js
 
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'

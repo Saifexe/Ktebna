@@ -68,13 +68,13 @@ const UpdateProfilePictureModal = ({
             {preview ? (
               <img
                 src={preview}
-                alt="preview"
+                alt={t("updateProfilePictureModal.title")}
                 className="w-32 h-32 rounded-full object-cover"
               />
             ) : (
               <img
                 src={userProfilePicture}
-                alt="profile picture"
+                alt={t("profile.changePhoto")}
                 className="w-32 h-32 rounded-full object-cover"
               />
             )}

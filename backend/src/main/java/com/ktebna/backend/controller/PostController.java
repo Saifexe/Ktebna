@@ -1,6 +1,6 @@
 package com.ktebna.backend.controller;
 
-import com.ktebna.backend.dto.PostRequest;
+import com.ktebna.backend.dto.PostForm;
 import com.ktebna.backend.dto.PostResponse;
 import com.ktebna.backend.dto.VisibilityRequest;
 import com.ktebna.backend.entity.Post;
@@ -84,66 +84,41 @@ public class PostController {
     }
 
     @PostMapping(consumes = "multipart/form-data")
-    public PostResponse create(@AuthenticationPrincipal User currentUser,
-                                @RequestParam("bookName") String bookName,
-                                @RequestParam(value = "bookAuthor", required = false) String bookAuthor,
-                                @RequestParam(value = "bookCategory", required = false) String bookCategory,
-                                @RequestParam(value = "bookDeal", required = false) String bookDeal,
-                                @RequestParam(value = "bookDealType", required = false) String bookDealType,
-                                @RequestParam(value = "bookLocation", required = false) String bookLocation,
-                                @RequestParam(value = "bookCondition", required = false) String bookCondition,
-                                @RequestParam(value = "bookDescription", required = false) String bookDescription,
-                                @RequestParam(value = "pickupLat", required = false) Double pickupLat,
-                                @RequestParam(value = "pickupLng", required = false) Double pickupLng,
-                                @RequestParam(value = "pickupSpot", required = false) String pickupSpot,
-                                @RequestParam(value = "isPublic", required = false) Boolean isPublic,
-                                @RequestParam(value = "image", required = false) MultipartFile image) {
+    public PostResponse create(@AuthenticationPrincipal User currentUser, @Valid PostForm form) {
         Post post = new Post();
         post.setUser(currentUser);
-        applyFields(post, bookName, bookAuthor, bookCategory, bookDeal, bookDealType,
-                bookLocation, bookCondition, bookDescription);
-        applyPickup(post, pickupLat, pickupLng, pickupSpot);
-        post.setPublic(isPublic == null || isPublic);
-
-        if (image != null && !image.isEmpty()) {
-            post.setBookImage(fileStorageService.store(image));
-        }
-
-        Post saved = postRepository.save(post);
-        return toResponse(saved);
+        post.setPublic(form.getIsPublic() == null || form.getIsPublic());
+        return save(post, form);
     }
 
     @PutMapping(value = "/{id}", consumes = "multipart/form-data")
     public PostResponse update(@AuthenticationPrincipal User currentUser,
                                 @PathVariable Long id,
-                                @RequestParam("bookName") String bookName,
-                                @RequestParam(value = "bookAuthor", required = false) String bookAuthor,
-                                @RequestParam(value = "bookCategory", required = false) String bookCategory,
-                                @RequestParam(value = "bookDeal", required = false) String bookDeal,
-                                @RequestParam(value = "bookDealType", required = false) String bookDealType,
-                                @RequestParam(value = "bookLocation", required = false) String bookLocation,
-                                @RequestParam(value = "bookCondition", required = false) String bookCondition,
-                                @RequestParam(value = "bookDescription", required = false) String bookDescription,
-                                @RequestParam(value = "pickupLat", required = false) Double pickupLat,
-                                @RequestParam(value = "pickupLng", required = false) Double pickupLng,
-                                @RequestParam(value = "pickupSpot", required = false) String pickupSpot,
-                                @RequestParam(value = "isPublic", required = false) Boolean isPublic,
-                                @RequestParam(value = "image", required = false) MultipartFile image) {
+                                @Valid PostForm form) {
         Post post = getOwnedPost(currentUser, id);
-
-        applyFields(post, bookName, bookAuthor, bookCategory, bookDeal, bookDealType,
-                bookLocation, bookCondition, bookDescription);
-        applyPickup(post, pickupLat, pickupLng, pickupSpot);
-        if (isPublic != null) {
-            post.setPublic(isPublic);
+        if (form.getIsPublic() != null) {
+            post.setPublic(form.getIsPublic());
         }
+        return save(post, form);
+    }
 
+    // Shared by create and update: copy the form, store a new image if one was sent.
+    private PostResponse save(Post post, PostForm form) {
+        post.setBookName(form.getBookName());
+        post.setBookAuthor(form.getBookAuthor());
+        post.setBookCategory(form.getBookCategory());
+        post.setBookDeal(form.getBookDeal());
+        post.setBookDealType(form.getBookDealType());
+        post.setBookLocation(form.getBookLocation());
+        post.setBookCondition(form.getBookCondition());
+        post.setBookDescription(form.getBookDescription());
+        applyPickup(post, form.getPickupLat(), form.getPickupLng(), form.getPickupSpot());
+
+        MultipartFile image = form.getImage();
         if (image != null && !image.isEmpty()) {
             post.setBookImage(fileStorageService.store(image));
         }
-
-        Post saved = postRepository.save(post);
-        return toResponse(saved);
+        return toResponse(postRepository.save(post));
     }
 
     @PatchMapping("/{id}/visibility")
@@ -176,19 +151,6 @@ public class PostController {
 
     private String blankToNull(String s) {
         return (s == null || s.isBlank() || s.equalsIgnoreCase("All") || s.equalsIgnoreCase("allTunisia")) ? null : s;
-    }
-
-    private void applyFields(Post post, String bookName, String bookAuthor, String bookCategory,
-                             String bookDeal, String bookDealType, String bookLocation,
-                             String bookCondition, String bookDescription) {
-        post.setBookName(bookName);
-        post.setBookAuthor(bookAuthor);
-        post.setBookCategory(bookCategory);
-        post.setBookDeal(bookDeal);
-        post.setBookDealType(bookDealType);
-        post.setBookLocation(bookLocation);
-        post.setBookCondition(bookCondition);
-        post.setBookDescription(bookDescription);
     }
 
     // A pin needs both coordinates inside valid ranges; otherwise it is cleared.

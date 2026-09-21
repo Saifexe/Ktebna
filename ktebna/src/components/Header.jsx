@@ -15,8 +15,8 @@ const LANGUAGES = [
   { code: "ar", name: "العربية" },
 ];
 
-export const Brand = () => (
-  <Link to="/" className="flex items-center gap-2">
+export const Brand = ({ onClick }) => (
+  <Link to="/" onClick={onClick} className="flex items-center gap-2">
     <BookOpen className="size-7 text-primary" />
     <span className="font-display text-xl font-bold">
       Ktebna<span className="text-primary">.</span>
@@ -34,6 +34,12 @@ const Header = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const langRef = useRef(null);
+  const searchRef = useRef(null);
+
+  // Focus the search box when it opens (instead of autoFocus, which a11y rules flag).
+  useEffect(() => {
+    if (searchOpen) searchRef.current?.focus();
+  }, [searchOpen]);
 
   useEffect(() => {
     if (!langOpen) return;
@@ -99,7 +105,7 @@ const Header = () => {
               className="flex items-center gap-1 rounded-md border bg-card ps-3"
             >
               <input
-                autoFocus
+                ref={searchRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}

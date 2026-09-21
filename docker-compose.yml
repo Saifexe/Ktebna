@@ -4,7 +4,7 @@
 #
 # Every port is bound to 127.0.0.1, so nothing is reachable from other machines
 # on your network. To demo the app on your LAN, change only the frontend
-# mapping to "5173:80". Never expose MySQL, the backend, Prometheus or Grafana.
+# mapping to "5173:8080". Never expose MySQL, the backend, Prometheus or Grafana.
 
 services:
   mysql:
@@ -67,7 +67,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "127.0.0.1:5173:80"
+      - "127.0.0.1:5173:8080"
 
   prometheus:
     image: prom/prometheus:v3.13.2

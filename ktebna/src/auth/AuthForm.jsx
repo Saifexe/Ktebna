@@ -37,6 +37,9 @@ const AuthForm = ({ onSuccess }) => {
     }
   };
 
+  let submitLabel = mode === "login" ? t("auth.login") : t("auth.register");
+  if (submitting) submitLabel = t("auth.wait");
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <div className="text-center">
@@ -80,7 +83,7 @@ const AuthForm = ({ onSuccess }) => {
 
       <Button type="submit" className="mt-1 h-11" disabled={submitting}>
         {submitting && <Loader2 className="animate-spin" />}
-        {submitting ? t("auth.wait") : mode === "login" ? t("auth.login") : t("auth.register")}
+        {submitLabel}
       </Button>
       <Button variant="link" onClick={() => setMode(mode === "login" ? "register" : "login")}>
         {mode === "login" ? t("auth.toRegister") : t("auth.toLogin")}

@@ -17,6 +17,69 @@ import { timeAgo } from "../lib/listing";
 const otherParticipant = (conv, userId) =>
   conv.firstUser?.id === userId ? conv.secondUser : conv.firstUser;
 
+// One entry in the inbox list.
+const ConversationRow = ({ conv, other, active, mine, unread, onOpen }) => {
+  const { t, i18n } = useTranslation();
+  return (
+    <li>
+      <button
+        onClick={onOpen}
+        className={`mt-2 flex w-full items-center gap-3 rounded-md p-3 text-start transition-colors ${
+          active ? "bg-accent" : "hover:bg-muted"
+        }`}
+      >
+        <Avatar src={other?.profilePicture} name={other?.name} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <b className="truncate">{other?.name}</b>
+            <span className={`shrink-0 text-[10px] ${unread ? "font-bold text-red-600" : "text-muted-foreground"}`}>
+              {timeAgo(conv.updatedAt, i18n.language)}
+            </span>
+          </div>
+          {conv.conversationTopic && <p className="truncate text-xs text-primary">{conv.conversationTopic}</p>}
+          <div className="flex items-center gap-2">
+            <p
+              className={`min-w-0 flex-1 truncate text-xs ${
+                unread ? "font-semibold text-foreground" : "text-muted-foreground"
+              }`}
+            >
+              {mine && `${t("messagesPage.you")}: `}
+              {conv.lastMessageContent}
+            </p>
+            <UnreadBadge count={unread} className="ring-0" />
+          </div>
+        </div>
+      </button>
+    </li>
+  );
+};
+
+// The open thread's messages, or its loading / empty state.
+const MessageBubbles = ({ loading, messages, userId, topic, formatTime }) => {
+  const { t } = useTranslation();
+  if (loading) return <Spinner />;
+  if (messages.length === 0) {
+    return (
+      <p className="py-10 text-center text-sm text-muted-foreground">
+        {topic ? t("messagesPage.start", { book: topic }) : t("messagesPage.startGeneric")}
+      </p>
+    );
+  }
+  return messages.map((m) => {
+    const own = m.userId === userId;
+    return (
+      <div key={m.id} className={`flex ${own ? "justify-end" : "justify-start"}`}>
+        <div className={`max-w-md rounded-lg p-3 ${own ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+          <p className="whitespace-pre-line break-words">{m.messageContent}</p>
+          <span className={`mt-1 block text-[10px] ${own ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+            {formatTime(m.createdAt)}
+          </span>
+        </div>
+      </div>
+    );
+  });
+};
+
 // Two-pane inbox from the Lovable redesign. The open thread is addressed by
 // ?with=<userId> so book pages can deep-link into a (possibly new) chat.
 const Messages = () => {
@@ -46,11 +109,10 @@ const Messages = () => {
   });
   const conversation = listed || fetched || null;
 
-  const other = conversation
-    ? otherParticipant(conversation, user.id)
-    : withId
-      ? { id: withId, name: params.get("name") || t("chatDrawer.user") }
-      : null;
+  // Existing chat: its other participant. New chat from a book page: the ?with user.
+  let other = null;
+  if (conversation) other = otherParticipant(conversation, user.id);
+  else if (withId) other = { id: withId, name: params.get("name") || t("chatDrawer.user") };
   const topic = conversation?.conversationTopic || params.get("book") || "";
 
   const { data: messages = [], isLoading: loadingMessages } = useQuery({
@@ -103,69 +165,48 @@ const Messages = () => {
   const formatTime = (ts) =>
     new Date(ts).toLocaleTimeString(i18n.language, { hour: "numeric", minute: "2-digit" });
 
+  const renderConversationList = () => {
+    if (isLoading) return <Spinner />;
+    if (conversations.length === 0 && !withId) {
+      return (
+        <div className="mt-8 text-center">
+          <MessageCircle className="mx-auto size-10 text-primary" />
+          <p className="mt-3 font-bold">{t("messagesPage.empty")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("messagesPage.emptyText")}</p>
+          <Button to="/" variant="outline" className="mt-4">
+            {t("savedPage.browse")}
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <ul className="mt-2">
+        {conversations.map((conv) => {
+          const o = otherParticipant(conv, user.id);
+          const active = o?.id === withId;
+          return (
+            <ConversationRow
+              key={conv.id}
+              conv={conv}
+              other={o}
+              active={active}
+              mine={conv.lastMessageSender === user.id}
+              unread={active ? 0 : countFor(conv.id)}
+              onOpen={() => open(conv)}
+            />
+          );
+        })}
+      </ul>
+    );
+  };
+
   return (
     <div className="mx-auto grid max-w-6xl md:min-h-[calc(100vh-4rem)] md:grid-cols-[320px_1fr]">
       <aside className={`border-e p-4 ${withId ? "hidden md:block" : ""}`}>
         <h1 className="font-display text-2xl font-bold">{t("messagesPage.title")}</h1>
         <p className="mt-1 text-xs text-muted-foreground">{t("messagesPage.note")}</p>
 
-        {isLoading ? (
-          <Spinner />
-        ) : conversations.length === 0 && !withId ? (
-          <div className="mt-8 text-center">
-            <MessageCircle className="mx-auto size-10 text-primary" />
-            <p className="mt-3 font-bold">{t("messagesPage.empty")}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{t("messagesPage.emptyText")}</p>
-            <Button to="/" variant="outline" className="mt-4">
-              {t("savedPage.browse")}
-            </Button>
-          </div>
-        ) : (
-          <ul className="mt-2">
-            {conversations.map((conv) => {
-              const o = otherParticipant(conv, user.id);
-              const active = o?.id === withId;
-              const mine = conv.lastMessageSender === user.id;
-              const unread = active ? 0 : countFor(conv.id);
-              return (
-                <li key={conv.id}>
-                  <button
-                    onClick={() => open(conv)}
-                    className={`mt-2 flex w-full items-center gap-3 rounded-md p-3 text-start transition-colors ${
-                      active ? "bg-accent" : "hover:bg-muted"
-                    }`}
-                  >
-                    <Avatar src={o?.profilePicture} name={o?.name} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <b className="truncate">{o?.name}</b>
-                        <span
-                          className={`shrink-0 text-[10px] ${unread ? "font-bold text-red-600" : "text-muted-foreground"}`}
-                        >
-                          {timeAgo(conv.updatedAt, i18n.language)}
-                        </span>
-                      </div>
-                      {conv.conversationTopic && (
-                        <p className="truncate text-xs text-primary">{conv.conversationTopic}</p>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <p
-                          className={`min-w-0 flex-1 truncate text-xs ${
-                            unread ? "font-semibold text-foreground" : "text-muted-foreground"
-                          }`}
-                        >
-                          {mine && `${t("messagesPage.you")}: `}
-                          {conv.lastMessageContent}
-                        </p>
-                        <UnreadBadge count={unread} className="ring-0" />
-                      </div>
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        {renderConversationList()}
       </aside>
 
       <section
@@ -205,35 +246,13 @@ const Messages = () => {
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto py-6">
-              {loadingMessages ? (
-                <Spinner />
-              ) : messages.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">
-                  {topic ? t("messagesPage.start", { book: topic }) : t("messagesPage.startGeneric")}
-                </p>
-              ) : (
-                messages.map((m) => {
-                  const own = m.userId === user.id;
-                  return (
-                    <div key={m.id} className={`flex ${own ? "justify-end" : "justify-start"}`}>
-                      <div
-                        className={`max-w-md rounded-lg p-3 ${
-                          own ? "bg-primary text-primary-foreground" : "bg-muted"
-                        }`}
-                      >
-                        <p className="whitespace-pre-line break-words">{m.messageContent}</p>
-                        <span
-                          className={`mt-1 block text-[10px] ${
-                            own ? "text-primary-foreground/70" : "text-muted-foreground"
-                          }`}
-                        >
-                          {formatTime(m.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+              <MessageBubbles
+                loading={loadingMessages}
+                messages={messages}
+                userId={user.id}
+                topic={topic}
+                formatTime={formatTime}
+              />
               <div ref={endRef} />
             </div>
 

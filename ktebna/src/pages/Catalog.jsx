@@ -72,6 +72,24 @@ const Catalog = () => {
   const posts = data?.data ?? [];
   const activeFilters = [category, dealType, location].filter(Boolean).length;
 
+  const renderResults = () => {
+    if (isLoading) return <Spinner />;
+    if (posts.length === 0) {
+      return <EmptyState icon={SearchX} title={t("catalog.empty")} text={t("catalog.emptyText")} />;
+    }
+    return (
+      <div
+        className={`grid grid-cols-2 gap-x-4 gap-y-8 transition-opacity md:grid-cols-3 lg:grid-cols-4 ${
+          isFetching ? "opacity-60" : ""
+        }`}
+      >
+        {posts.map((post) => (
+          <BookCard key={post.id} post={post} saved={isSaved(post.id)} onToggleSave={toggle} />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <>
       <section className="border-b border-border bg-surface-soft">
@@ -198,21 +216,7 @@ const Catalog = () => {
           </div>
         )}
 
-        {isLoading ? (
-          <Spinner />
-        ) : posts.length === 0 ? (
-          <EmptyState icon={SearchX} title={t("catalog.empty")} text={t("catalog.emptyText")} />
-        ) : (
-          <div
-            className={`grid grid-cols-2 gap-x-4 gap-y-8 transition-opacity md:grid-cols-3 lg:grid-cols-4 ${
-              isFetching ? "opacity-60" : ""
-            }`}
-          >
-            {posts.map((post) => (
-              <BookCard key={post.id} post={post} saved={isSaved(post.id)} onToggleSave={toggle} />
-            ))}
-          </div>
-        )}
+        {renderResults()}
 
         <Pagination
           page={page}
