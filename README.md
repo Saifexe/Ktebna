@@ -181,6 +181,7 @@ flowchart TB
 │       └── index.css         Design tokens (light + dark)
 ├── k8s/                      Kubernetes manifests
 ├── monitoring/               Prometheus scrape config, Grafana provisioning
+├── scripts/                  dev-backend.ps1 / .sh: start the API with .env loaded
 ├── docs/SECURITY_GATES.md    Pipeline gate policy
 ├── docker-compose.yml        Full local stack (5 services)
 ├── .gitlab-ci.yml            CI/CD pipeline
@@ -214,16 +215,20 @@ All ports are bound to `127.0.0.1`, so the stack is reachable only from your own
 
 ### Option B: Local development (hot reload)
 
-**Prerequisites:** Java 17, Maven 3.9, Node.js 20.19+ (or 22.12+), and a MySQL 8 server (for example XAMPP on port 3306) with a `ktebna` database and a user that can create tables.
+**Prerequisites:** Java 17, Node.js 20.19+ (or 22.12+), and a MySQL 8 / MariaDB server (for example XAMPP on port 3306) with a `ktebna` database and a user that can create tables. Maven is not required: the repo ships the Maven Wrapper (`backend/mvnw`), which downloads a checksum-pinned Maven 3.9.11 on first use.
 
-1. **Backend**, from `backend/`:
-   ```bash
-   # export DB_PASSWORD, JWT_SECRET, … (see Configuration), then:
-   mvn spring-boot:run
+1. **Secrets:** `cp .env.example .env` and fill in at least `DB_PASSWORD` and `JWT_SECRET`.
+
+2. **Backend:** the script loads `.env`, checks the required values, and starts the API on http://localhost:8080:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\dev-backend.ps1   # Windows
    ```
-   The API starts on http://localhost:8080. Hibernate creates or updates the tables on startup.
+   ```bash
+   ./scripts/dev-backend.sh                                          # macOS / Linux / Git Bash
+   ```
+   Hibernate creates or updates the tables on startup. For IntelliJ, run `KtebnaBackendApplication` with the same variables from `.env` in the run configuration's *Environment variables*.
 
-2. **Frontend**, from `ktebna/`:
+3. **Frontend**, from `ktebna/`:
    ```bash
    cp .env.example .env      # set VITE_API_URL=http://localhost:8080
    npm install
@@ -339,7 +344,7 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Five stages run on every push:
 **Run the blocking checks locally before pushing:**
 
 ```bash
-(cd backend && mvn -B test && mvn -B -DskipTests package)
+(cd backend && ./mvnw -B test && ./mvnw -B -DskipTests package)
 (cd ktebna && npm ci && npm run lint && npm run build)
 ```
 
