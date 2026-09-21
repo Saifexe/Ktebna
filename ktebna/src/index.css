@@ -1,1 +1,150 @@
 @import "tailwindcss";
+
+/* ============================================================================
+   Ktebna design tokens
+   ----------------------------------------------------------------------------
+   Source of truth: the Lovable "Ktebna — Book Marketplace" redesign
+   (ktebna-source/src/styles.css). Light values are copied verbatim (oklch);
+   src/theme/muiTheme.js mirrors them as hex because MUI can't parse oklch.
+
+   The Lovable export ships only the stock shadcn slate dark theme, which
+   doesn't belong to this palette, so the dark block below is a warm companion
+   derived from the light one (same values as the MUI dark scheme).
+   ========================================================================== */
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.985 0.008 32);
+  --foreground: oklch(0.22 0.015 35);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.015 35);
+  --primary: oklch(0.48 0.15 52);
+  --primary-foreground: oklch(0.99 0.004 45);
+  --secondary: oklch(0.94 0.018 32);
+  --secondary-foreground: oklch(0.3 0.03 35);
+  --muted: oklch(0.95 0.012 30);
+  --muted-foreground: oklch(0.5 0.025 35);
+  --accent: oklch(0.93 0.035 50);
+  --accent-foreground: oklch(0.4 0.11 48);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.89 0.018 35);
+  --input: oklch(0.89 0.018 35);
+  --ring: oklch(0.57 0.15 52);
+  --surface-soft: oklch(0.97 0.014 32);
+  --trust: oklch(0.45 0.11 155);
+  --trust-soft: oklch(0.92 0.06 155);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0d0b09;
+    --foreground: #e7e4df;
+    --card: #171411;
+    --card-foreground: #e7e4df;
+    --primary: #e08533;
+    --primary-foreground: #1d140d;
+    --secondary: #27231f;
+    --secondary-foreground: #e7e4df;
+    --muted: #27231f;
+    --muted-foreground: #a49d95;
+    --accent: #3a2814;
+    --accent-foreground: #f0c68a;
+    --destructive: #ff6467;
+    --destructive-foreground: #1d140d;
+    --border: #312d28;
+    --input: #312d28;
+    --ring: #e08533;
+    --surface-soft: #1c1814;
+    --trust: #57bc80;
+    --trust-soft: #1c3126;
+  }
+}
+
+/* Explicit opt-in override, for a future in-app theme toggle. */
+[data-theme="dark"] {
+  --background: #0d0b09;
+  --foreground: #e7e4df;
+  --card: #171411;
+  --card-foreground: #e7e4df;
+  --primary: #e08533;
+  --primary-foreground: #1d140d;
+  --secondary: #27231f;
+  --secondary-foreground: #e7e4df;
+  --muted: #27231f;
+  --muted-foreground: #a49d95;
+  --accent: #3a2814;
+  --accent-foreground: #f0c68a;
+  --destructive: #ff6467;
+  --destructive-foreground: #1d140d;
+  --border: #312d28;
+  --input: #312d28;
+  --ring: #e08533;
+  --surface-soft: #1c1814;
+  --trust: #57bc80;
+  --trust-soft: #1c3126;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface-soft: var(--surface-soft);
+  --color-trust: var(--trust);
+  --color-trust-soft: var(--trust-soft);
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Merriweather", ui-serif, Georgia, serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Arabic keeps a serif-free stack: Plus Jakarta Sans has no Arabic
+     coverage, so let the system pick a proper Arabic face rather than
+     falling through to a Latin serif. Also raises line-height per
+     DESIGN.md's multilingual guidance (min 1.45) to clear diacritics. */
+  :lang(ar) {
+    font-family: "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+    line-height: 1.45;
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  button,
+  a {
+    cursor: pointer;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}

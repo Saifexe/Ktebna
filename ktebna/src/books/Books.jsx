@@ -14,8 +14,8 @@ const Books = () => {
     category,
   });
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-20 mt-6">
-      <div className="grid gap-8 md:grid-cols-[260px_1fr]">
+    <div className="mx-auto max-w-7xl px-4 py-8 lg:px-6">
+      <div className="grid gap-8 md:grid-cols-[240px_1fr]">
         <aside className="hidden md:block">
           <BooksFilterPanel category={category} setCategory={setCategory} />
         </aside>

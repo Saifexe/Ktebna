@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
+import redesign from './locales/redesign';
 
 const resources = {
     en: {
@@ -262,6 +263,17 @@ const resources = {
                 english: "English",
                 french: "French",
                 arabic: "Arabic"
+            },
+            bottomNav: {
+                explore: "Explore",
+                saved: "Saved",
+                sell: "Sell",
+                messages: "Messages",
+                profile: "Profile"
+            },
+            footer: {
+                tagline: "A community shelf for Tunisia — sell, swap, or donate the books you've finished.",
+                rights: "All rights reserved."
             }
 
         }
@@ -525,6 +537,17 @@ const resources = {
                 english: "Anglais",
                 french: "Français",
                 arabic: "Arabe"
+            },
+            bottomNav: {
+                explore: "Explorer",
+                saved: "Enregistrés",
+                sell: "Vendre",
+                messages: "Messages",
+                profile: "Profil"
+            },
+            footer: {
+                tagline: "Une étagère communautaire pour la Tunisie — vendez, échangez ou donnez les livres que vous avez terminés.",
+                rights: "Tous droits réservés."
             }
         }
     },
@@ -787,6 +810,17 @@ const resources = {
                 english: "الإنجليزية",
                 french: "الفرنسية",
                 arabic: "العربية"
+            },
+            bottomNav: {
+                explore: "استكشاف",
+                saved: "المحفوظة",
+                sell: "بيع",
+                messages: "الرسائل",
+                profile: "الملف"
+            },
+            footer: {
+                tagline: "رف مجتمعي لتونس — بِع أو بادل أو تبرّع بالكتب التي أنهيتها.",
+                rights: "جميع الحقوق محفوظة."
             }
         }
 
@@ -804,5 +838,20 @@ i18n
             escapeValue: false
         }
     });
+
+
+// Strings for the redesigned screens live in locales/redesign.js.
+Object.entries(redesign).forEach(([lng, strings]) => {
+    i18n.addResourceBundle(lng, 'translation', strings, true, true);
+});
+
+// Keep <html lang/dir> in sync so Arabic renders right-to-left.
+const applyDocumentLanguage = (lng) => {
+    const base = (lng || 'en').split('-')[0];
+    document.documentElement.lang = base;
+    document.documentElement.dir = base === 'ar' ? 'rtl' : 'ltr';
+};
+applyDocumentLanguage(i18n.language);
+i18n.on('languageChanged', applyDocumentLanguage);
 
 export default i18n;

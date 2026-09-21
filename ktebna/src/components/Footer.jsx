@@ -1,59 +1,62 @@
-import React from "react";
-import CATEGORIES from "../data/categories";
+import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
 const Footer = () => {
+  const { t } = useTranslation();
+
+  const columns = [
+    {
+      title: t("header.menu"),
+      links: [
+        { to: "/", label: t("nav.browse") },
+        { to: "/books", label: t("nav.library") },
+        { to: "/about", label: t("nav.about") },
+        { to: "/contact", label: t("nav.contact") },
+      ],
+    },
+    {
+      title: t("nav.profile"),
+      links: [
+        { to: "/sell", label: t("nav.sell") },
+        { to: "/saved", label: t("nav.saved") },
+        { to: "/messages", label: t("nav.messages") },
+        { to: "/profile", label: t("profile.myListings") },
+      ],
+    },
+  ];
+
   return (
-    <footer className="border-t border-stone-200/70 bg-white/60 py-10 text-sm dark:border-stone-800 dark:bg-stone-900/60">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 md:grid-cols-3">
-        <div>
+    <footer className="hidden border-t border-border bg-surface-soft py-10 text-sm md:block">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 md:grid-cols-4 lg:px-6">
+        <div className="md:col-span-2">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-amber-700" />
-            <span className="font-serif text-lg">The Bookshop</span>
+            <BookOpen className="h-5 w-5 text-primary" />
+            <span className="font-display text-lg font-bold">
+              Ktebna<span className="text-primary">.</span>
+            </span>
           </div>
-          <p className="mt-2 max-w-xs text-stone-600 dark:text-stone-400">
-            Inspired by timeless libraries. Thoughtfully curated books for every
-            shelf.
-          </p>
+          <p className="mt-2 max-w-xs text-muted-foreground">{t("footer.tagline")}</p>
         </div>
-        <div className="grid grid-cols-2 gap-6 md:col-span-2 md:grid-cols-4">
-          <div>
-            <h4 className="mb-2 font-semibold">Shop</h4>
-            <ul className="space-y-2 text-stone-600 dark:text-stone-400">
-              <li>New Arrivals</li>
-              <li>Bestsellers</li>
-              <li>Gift Cards</li>
-              <li>Membership</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="mb-2 font-semibold">Genres</h4>
-            <ul className="space-y-2 text-stone-600 dark:text-stone-400">
-              {CATEGORIES.filter((c) => c !== "All").map((c) => (
-                <li key={c}>{c}</li>
+
+        {columns.map(({ title, links }) => (
+          <div key={title}>
+            <h4 className="mb-2 font-semibold">{title}</h4>
+            <ul className="space-y-2 text-muted-foreground">
+              {links.map(({ to, label }) => (
+                <li key={to}>
+                  <Link to={to} className="transition-colors hover:text-primary">
+                    {label}
+                  </Link>
+                </li>
               ))}
             </ul>
           </div>
-          <div>
-            <h4 className="mb-2 font-semibold">Support</h4>
-            <ul className="space-y-2 text-stone-600 dark:text-stone-400">
-              <li>Help Center</li>
-              <li>Shipping</li>
-              <li>Returns</li>
-              <li>Contact</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="mb-2 font-semibold">Legal</h4>
-            <ul className="space-y-2 text-stone-600 dark:text-stone-400">
-              <li>Terms</li>
-              <li>Privacy</li>
-              <li>Cookies</li>
-            </ul>
-          </div>
-        </div>
+        ))}
       </div>
-      <div className="mx-auto max-w-7xl px-4 pt-8 text-stone-500">
-        © {new Date().getFullYear()} The Bookshop
+
+      <div className="mx-auto mt-8 max-w-7xl border-t border-border px-4 pt-6 text-muted-foreground lg:px-6">
+        © {new Date().getFullYear()} Ktebna — {t("footer.rights")}
       </div>
     </footer>
   );

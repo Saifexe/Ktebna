@@ -48,3 +48,6 @@ desktop.ini
 graphify-out/
 
 graphify-out/
+
+# ===== Database dumps (contain user emails + password hashes) =====
+backups/

@@ -76,6 +76,8 @@ public class MessageController {
         conversation.setLastMessageContent(req.getMessageContent());
         conversation.setLastMessageSender(currentUser.getId());
         conversation.setUpdatedAt(LocalDateTime.now());
+        // Writing a message means you've seen everything before it.
+        conversation.markReadUpTo(currentUser.getId(), message.getId());
         conversation = conversationRepository.save(conversation);
 
         if (otherUser.getEmail() != null && !otherUser.getEmail().isBlank()) {

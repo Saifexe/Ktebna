@@ -29,3 +29,12 @@ export const getMyConversations = async () => {
   const { data } = await apiClient.get("/api/conversations");
   return data; // ConversationResponse[]
 };
+
+export const getUnread = async () => {
+  const { data } = await apiClient.get("/api/conversations/unread");
+  return data; // { total, conversations: [{ conversationId, count, otherUser, ... }] }
+};
+
+export const markConversationRead = async (conversationId) => {
+  await apiClient.post(`/api/conversations/${conversationId}/read`);
+};

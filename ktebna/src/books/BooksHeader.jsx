@@ -13,16 +13,16 @@ const BooksHeader = ({ language, setLanguage }) => {
   ];
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="font-serif text-2xl text-stone-900 dark:text-stone-100">
+      <h2 className="font-display text-2xl font-bold">
         {/* {t("home.recentBooks")} */}
         {t("booksHeader.title")}
       </h2>
       <div className="flex items-center gap-2">
-        <Filter className="h-4 w-4 text-stone-500 md:hidden" />
+        <Filter className="h-4 w-4 text-muted-foreground md:hidden" />
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
-          className="rounded-xl border border-stone-300 bg-white/80 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800"
+          className="h-9 rounded-md border border-input bg-card px-3 text-sm shadow-sm outline-none"
         >
           {bookLanguages.map((language) => (
             <option key={language.value} value={language.value}>

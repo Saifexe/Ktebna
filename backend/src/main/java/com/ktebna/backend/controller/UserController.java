@@ -4,12 +4,17 @@ import com.ktebna.backend.dto.UpdateNameRequest;
 import com.ktebna.backend.dto.UserDto;
 import com.ktebna.backend.entity.User;
 import com.ktebna.backend.exception.ApiException;
+import com.ktebna.backend.repository.ConversationRepository;
+import com.ktebna.backend.repository.MessageRepository;
+import com.ktebna.backend.repository.PostRepository;
+import com.ktebna.backend.repository.SavedPostRepository;
 import com.ktebna.backend.repository.UserRepository;
 import com.ktebna.backend.service.FileStorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,6 +24,10 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final PostRepository postRepository;
+    private final SavedPostRepository savedPostRepository;
+    private final ConversationRepository conversationRepository;
+    private final MessageRepository messageRepository;
     private final FileStorageService fileStorageService;
 
     @GetMapping("/users/{id}")
@@ -45,9 +54,16 @@ public class UserController {
         return toDto(saved);
     }
 
+    // Children first, so no foreign key still points at the user or their posts.
     @DeleteMapping("/account")
+    @Transactional
     public void deleteAccount(@AuthenticationPrincipal User currentUser) {
-        userRepository.delete(currentUser);
+        Long userId = currentUser.getId();
+        savedPostRepository.deleteAllInvolvingUser(userId);
+        messageRepository.deleteAllInvolvingUser(userId);
+        conversationRepository.deleteAllInvolvingUser(userId);
+        postRepository.deleteAllByOwner(userId);
+        userRepository.deleteById(userId);
     }
 
     private UserDto toDto(User user) {

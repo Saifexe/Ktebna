@@ -1,7 +1,6 @@
 package com.ktebna.backend.controller;
 
 import com.ktebna.backend.dto.PostResponse;
-import com.ktebna.backend.dto.UserDto;
 import com.ktebna.backend.entity.Post;
 import com.ktebna.backend.entity.SavedPost;
 import com.ktebna.backend.entity.User;
@@ -36,7 +35,7 @@ public class SavedPostController {
                 currentUser.getId(), PageRequest.of(page, size));
 
         List<PostResponse> data = result.getContent().stream()
-                .map(sp -> toResponse(sp.getPost()))
+                .map(sp -> PostResponse.from(sp.getPost()))
                 .toList();
 
         return Map.of(
@@ -75,15 +74,5 @@ public class SavedPostController {
     @DeleteMapping("/{postId}")
     public void unsavePost(@AuthenticationPrincipal User currentUser, @PathVariable Long postId) {
         savedPostRepository.deleteByUserIdAndPostId(currentUser.getId(), postId);
-    }
-
-    private PostResponse toResponse(Post post) {
-        User u = post.getUser();
-        UserDto userDto = new UserDto(u.getId(), u.getName(), u.getEmail(), u.getProfilePicture());
-        return new PostResponse(
-                post.getId(), post.getBookName(), post.getBookCategory(), post.getBookDeal(),
-                post.getBookDealType(), post.getBookImage(), post.getBookLocation(),
-                post.isPublic(), post.getCreatedAt(), userDto
-        );
     }
 }

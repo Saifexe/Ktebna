@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next";
 function BooksFilterPanel({ category, setCategory }) {
   const { t } = useTranslation();
   return (
-    <div className="sticky top-20 space-y-6 border border-stone-200/60 bg-white/70 p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900/70">
+    <div className="sticky top-20 space-y-6 rounded-lg border border-border bg-card p-4 shadow-sm">
       <div>
-        <h3 className="mb-2 font-serif text-lg">
+        <h3 className="mb-2 font-display text-lg font-bold">
           {t("filterPanel.categories")}
         </h3>
         <div className="flex flex-wrap gap-2">
@@ -14,10 +14,10 @@ function BooksFilterPanel({ category, setCategory }) {
             <button
               key={c}
               onClick={() => setCategory(c)}
-              className={`rounded-xl px-3 py-1.5 text-sm transition ${
+              className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
                 category === c
-                  ? "bg-amber-700 text-amber-50 shadow"
-                  : "border border-stone-300 bg-white/70 text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "border border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`}
             >
               {t(`categories.${c}`)}

@@ -2,6 +2,7 @@ package com.ktebna.backend.repository;
 
 import com.ktebna.backend.entity.Conversation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,4 +19,8 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     @Query("select c from Conversation c where c.firstUser.id = :userId or c.secondUser.id = :userId " +
             "order by c.updatedAt desc")
     List<Conversation> findAllForUser(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("delete from Conversation c where c.firstUser.id = :userId or c.secondUser.id = :userId")
+    void deleteAllInvolvingUser(@Param("userId") Long userId);
 }

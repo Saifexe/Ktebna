@@ -27,6 +27,9 @@ public class Post {
     @Column(name = "book_name", nullable = false, length = 200)
     private String bookName;
 
+    @Column(name = "book_author", length = 200)
+    private String bookAuthor;
+
     @Column(name = "book_category", length = 100)
     private String bookCategory;
 
@@ -41,6 +44,24 @@ public class Post {
 
     @Column(name = "book_location", length = 100)
     private String bookLocation;
+
+    // One of: likeNew, gentlyRead, wellLoved, collectors (free text tolerated)
+    @Column(name = "book_condition", length = 30)
+    private String bookCondition;
+
+    // Seller notes: condition details, swap wishlist, pickup preferences
+    @Column(name = "book_description", length = 2000)
+    private String bookDescription;
+
+    // Optional pickup pin chosen on the map (a public meeting place, not a home address)
+    @Column(name = "pickup_lat")
+    private Double pickupLat;
+
+    @Column(name = "pickup_lng")
+    private Double pickupLng;
+
+    @Column(name = "pickup_spot", length = 200)
+    private String pickupSpot;
 
     @Column(name = "is_public", nullable = false)
     private boolean isPublic = true;

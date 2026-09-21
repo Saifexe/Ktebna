@@ -1,25 +1,31 @@
-import { Outlet } from "react-router-dom";
+import { useContext, useEffect } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import Header from "./Header";
+import Footer from "./Footer";
+import BottomNav from "./BottomNav";
+import MobileMenuDrawer from "./MobileMenuDrawer";
 import { MobileFiltersContext } from "../context/MobileFiltersContext";
-import MobileMenuDrawer from "../home/MobileMenuDrawer";
-import { useContext } from "react";
 
 function Layout() {
-  const {
-    mobileMenuOpen,
-    setMobileMenuOpen,
-  } = useContext(MobileFiltersContext);
+  const { mobileMenuOpen, setMobileMenuOpen } = useContext(MobileFiltersContext);
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,rgba(120,53,15,0.08),transparent_50%),linear-gradient(to_bottom,#faf7f2,#f7f3ea)] text-stone-800 dark:bg-[linear-gradient(to_bottom,#0b0a09,#0d0c0a)] dark:text-stone-200">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Header />
-      <main>
+      {/* pb-24 clears the fixed mobile bottom nav */}
+      <main className="flex-1 pb-24 md:pb-10">
         <Outlet />
       </main>
-      <MobileMenuDrawer
-        open={mobileMenuOpen}
-        onClose={() => setMobileMenuOpen(false)}
-      />
+      <Footer />
+      <BottomNav />
+      <MobileMenuDrawer open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
     </div>
   );
 }
+
 export default Layout;

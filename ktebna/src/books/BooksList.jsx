@@ -1,50 +1,30 @@
-import React from "react";
-// eslint-disable-next-line no-unused-vars
-import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import Badge from "../ui/Badge";
 
-
-const BooksList = ({ books }) => {
-  const navigate = useNavigate();
-
-  const handleBookSelect = (book) => {
-    navigate(`/books/${book.name}`);
-  };
-
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {books.map((book) => (
-        <motion.div
-          layout
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          key={book.id}
-          className="rounded-b-2xl border border-stone-200/60 bg-stone-50 shadow-sm transition hover:shadow-lg dark:border-stone-800/60 dark:bg-stone-900 cursor-pointer"
-          onClick={() => handleBookSelect(book)}
-        >
-          <div className="relative">
-            <img
-              src={book.cover}
-              alt={book.title}
-              className="w-full aspect-3/4 object-cover px-1 pt-1"
-            />
-          </div>
-          <div className="px-3 py-3">
-            <h3 className="text-lg font-semibold text-gray-800 truncate">
-              {book.title}
-            </h3>
-            <p className="text-sm text-gray-600 mb-4 truncate">{book.author}</p>
-            <div className="flex items-center justify-center gap-2 text-amber-600 font-medium">
-              <BookOpen className="w-4 h-4" />
-              <span>Read Now</span>
-            </div>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  );
-};
+// Free-to-read PDFs, laid out like the marketplace catalog tiles.
+const BooksList = ({ books }) => (
+  <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
+    {books.map((book) => (
+      <Link key={book.id} to={`/books/${book.name}`} className="group">
+        <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
+          <img
+            src={book.cover}
+            alt={book.title}
+            className="size-full object-cover transition duration-500 group-hover:scale-105"
+          />
+          <Badge tone="trust" className="absolute start-2 top-2 shadow-sm">
+            PDF
+          </Badge>
+        </div>
+        <h3 className="mt-3 line-clamp-2 font-display text-lg font-bold leading-snug">{book.title}</h3>
+        <p className="truncate text-sm text-muted-foreground">{book.author}</p>
+        <p className="mt-2 flex items-center gap-1.5 font-bold text-primary">
+          <BookOpen className="size-4" /> Read now
+        </p>
+      </Link>
+    ))}
+  </div>
+);
 
 export default BooksList;

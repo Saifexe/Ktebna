@@ -1,50 +1,64 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
-import Home from "./home/Home.jsx";
-import Account from "./account/Account.jsx";
-import { AuthProvider } from "./auth/AuthProvider.jsx";
-import UserPosts from "./account/UserPosts.jsx";
-import UserSavedPosts from "./account/UserSavedPosts.jsx";
-import UserConversations from "./account/UserConversations.jsx";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { ThemeProvider } from "@mui/material/styles";
 import { ToastContainer } from "react-toastify";
+import muiTheme from "./theme/muiTheme";
+import { AuthProvider } from "./auth/AuthProvider.jsx";
+import { MobileFiltersProvider } from "./context/MobileFiltersContext.jsx";
+import { LoginPromptProvider } from "./context/LoginPromptContext.jsx";
+import { NotificationsProvider } from "./context/NotificationsProvider.jsx";
+import Layout from "./components/Layout";
+import RequireAuth from "./components/RequireAuth";
+import Catalog from "./pages/Catalog.jsx";
+import BookDetail from "./pages/BookDetail.jsx";
+import Saved from "./pages/Saved.jsx";
+import Sell from "./pages/Sell.jsx";
+import Messages from "./pages/Messages.jsx";
+import Profile from "./pages/Profile.jsx";
 import Contact from "./pages/Contact.jsx";
 import About from "./pages/About.jsx";
-import { MobileFiltersProvider } from "./context/MobileFiltersContext.jsx";
 import LoginPage from "./auth/LoginFinal.jsx";
 import Books from "./books/Books.jsx";
 import Book from "./books/Book.jsx";
+
 function App() {
   return (
-    <>
+    <ThemeProvider theme={muiTheme}>
       <AuthProvider>
-        <MobileFiltersProvider>
-          <ToastContainer />
-          <Routes>
-            <Route element={<Layout />}>
-              <Route
-                path="/"
-                element={
-                  <div className="mt-6">
-                    <Home />
-                  </div>
-                }
-              />
-              <Route path="/books" element={<Books />} />
-              <Route path="/books/:name" element={<Book />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/account" element={<Account />}>
-                <Route index element={null} />
-                <Route path="posts" element={<UserPosts />} />
-                <Route path="savedPosts" element={<UserSavedPosts />} />
-                <Route path="conversations" element={<UserConversations />} />
-              </Route>
-            </Route>
-          </Routes>
-        </MobileFiltersProvider>
+        <LoginPromptProvider>
+          <NotificationsProvider>
+            <MobileFiltersProvider>
+              <ToastContainer position="bottom-center" />
+              <Routes>
+                <Route element={<Layout />}>
+                  <Route path="/" element={<Catalog />} />
+                  <Route path="/book/:id" element={<BookDetail />} />
+                  <Route path="/books" element={<Books />} />
+                  <Route path="/books/:name" element={<Book />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/contact" element={<Contact />} />
+
+                  <Route element={<RequireAuth />}>
+                    <Route path="/saved" element={<Saved />} />
+                    <Route path="/sell" element={<Sell />} />
+                    <Route path="/sell/:id" element={<Sell />} />
+                    <Route path="/messages" element={<Messages />} />
+                    <Route path="/profile" element={<Profile />} />
+                  </Route>
+
+                  {/* Pre-redesign account URLs */}
+                  <Route path="/account" element={<Navigate to="/profile" replace />} />
+                  <Route path="/account/posts" element={<Navigate to="/profile" replace />} />
+                  <Route path="/account/savedPosts" element={<Navigate to="/saved" replace />} />
+                  <Route path="/account/conversations" element={<Navigate to="/messages" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Route>
+              </Routes>
+            </MobileFiltersProvider>
+          </NotificationsProvider>
+        </LoginPromptProvider>
       </AuthProvider>
-    </>
+    </ThemeProvider>
   );
 }
 

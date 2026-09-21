@@ -37,11 +37,29 @@ public class Conversation {
     @Column(name = "last_message_sender")
     private Long lastMessageSender;
 
+    // Id of the newest message each participant has seen; anything newer from
+    // the other participant is unread. Ids (not timestamps) because the MySQL
+    // datetime columns only keep whole seconds.
+    @Column(name = "first_user_last_read_id")
+    private Long firstUserLastReadId;
+
+    @Column(name = "second_user_last_read_id")
+    private Long secondUserLastReadId;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public void markReadUpTo(Long userId, Long messageId) {
+        if (messageId == null) return;
+        if (firstUser.getId().equals(userId)) {
+            firstUserLastReadId = Math.max(messageId, firstUserLastReadId == null ? 0 : firstUserLastReadId);
+        } else if (secondUser.getId().equals(userId)) {
+            secondUserLastReadId = Math.max(messageId, secondUserLastReadId == null ? 0 : secondUserLastReadId);
+        }
+    }
 
     @PrePersist
     protected void onCreate() {

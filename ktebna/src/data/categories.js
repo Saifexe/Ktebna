@@ -1,23 +1,32 @@
-// Recovered from the translation keys in src/i18n.js (the original
-// categories.js file was corrupted in the project archive and could not
-// be extracted, so this list was reconstructed from i18n rather than
-// the original source).
+// Stored verbatim in posts.book_category; labels live under categories.* in
+// i18n.js (original set) and locales/redesign.js (added with the redesign).
+// Grouped for the filter chips: fiction genres, then non-fiction, then practical.
 const CATEGORIES = [
     "Fiction",
-    "Non-Fiction",
-    "Science",
-    "History",
-    "Biography",
-    "Technology",
-    "Art",
-    "Philosophy",
-    "Poetry",
+    "Classics",
+    "Arabic Literature",
+    "Manga & Comics",
+    "Fantasy",
+    "Science Fiction",
     "Mystery",
     "Romance",
+    "Poetry",
+    "Young Adult",
+    "Children's Books",
+    "Non-Fiction",
+    "Biography",
+    "History",
+    "Philosophy",
+    "Religion & Spirituality",
+    "Science",
+    "Technology",
+    "Education & Textbooks",
     "Self-Help",
     "Business",
     "Finance",
-    "Children's Books",
+    "Art",
+    "Cooking",
+    "Travel",
 ];
 
 export default CATEGORIES;

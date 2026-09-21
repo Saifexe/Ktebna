@@ -1,9 +1,12 @@
 package com.ktebna.backend.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.Map;
 
 // Calls the same external mailer microservice the original frontend used
@@ -14,8 +17,21 @@ public class EmailNotificationService {
     @Value("${app.mailer.url}")
     private String mailerUrl;
 
-    private final RestClient restClient = RestClient.create();
+    // The mailer runs on a free host that sleeps when idle and can take close to
+    // a minute to wake up. Bounded timeouts keep a dead mailer from pinning threads.
+    private final RestClient restClient = RestClient.builder()
+            .requestFactory(timeouts())
+            .build();
 
+    private static SimpleClientHttpRequestFactory timeouts() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(10));
+        factory.setReadTimeout(Duration.ofSeconds(90));
+        return factory;
+    }
+
+    // Runs on a background thread so sending a chat message never waits on email.
+    @Async
     public void sendNotification(String recipientEmail, String recipientName, String senderName,
                                   String messageContent, String bookName) {
         try {

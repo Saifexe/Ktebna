@@ -13,14 +13,14 @@ const Book = () => {
   // Handle case where book is not found
   if (!selectedBook) {
     return (
-      <div className="bg-[radial-gradient(ellipse_at_top,rgba(120,53,15,0.08),transparent_50%),linear-gradient(to_bottom,#faf7f2,#f7f3ea)] flex items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center bg-background">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+          <h2 className="mb-4 font-display text-2xl font-bold text-foreground">
             Book not found
           </h2>
           <button
             onClick={() => navigate("/books")}
-            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+            className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
           >
             Back to Library
           </button>
@@ -30,12 +30,12 @@ const Book = () => {
   }
 
   return (
-    <div className="bg-[radial-gradient(ellipse_at_top,rgba(120,53,15,0.08),transparent_50%),linear-gradient(to_bottom,#faf7f2,#f7f3ea)] mt-0">
+    <div className="bg-background">
       <div className="p-0">
         <div className="max-full">
           <iframe
             src={selectedBook.pdfUrl}
-            className="w-full h-screen bg-white"
+            className="h-screen w-full bg-card"
             title={selectedBook.title}
           />
         </div>
