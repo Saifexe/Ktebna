@@ -1,16 +1,25 @@
-﻿# --- Build stage ---
+# syntax=docker/dockerfile:1
+
+# --- Build stage ---
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+
+# Non-secret build settings, inlined into the bundle by Vite.
 ARG VITE_API_URL=""
 ENV VITE_API_URL=$VITE_API_URL
-ARG VITE_GOOGLE_MAPS_API_KEY=""
-ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 ARG VITE_GOOGLE_MAPS_MAP_ID=""
 ENV VITE_GOOGLE_MAPS_MAP_ID=$VITE_GOOGLE_MAPS_MAP_ID
-RUN npm run build
+
+# The Maps key comes in as a BuildKit secret, not an ARG/ENV: it's mounted only
+# for this one RUN, so it never lands in the image config or build history.
+# (Vite still embeds it in the public JS bundle; that's inherent to browser
+# keys, which is why the key must be restricted by HTTP referrer.)
+# Optional: without the secret the build succeeds and the maps stay hidden.
+RUN --mount=type=secret,id=maps_key,required=false \
+    VITE_GOOGLE_MAPS_API_KEY="$(cat /run/secrets/maps_key 2>/dev/null || true)" npm run build
 
 # --- Run stage ---
 FROM nginx:1.30.4-alpine3.24

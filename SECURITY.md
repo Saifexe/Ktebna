@@ -89,6 +89,18 @@ A full audit of the repository, its history, Docker Compose, the Kubernetes mani
 
 **Verification:** Compose rebuilt from the hardened tree, with all services healthy and every port on `127.0.0.1`. An 18-check attack script passed: headers, fake-image upload rejected, hidden listing `404` for others, no emails in the feed, generic errors, CORS refusal, `429` on brute-force login at both Nginx and the backend. The backend refuses to start with the old placeholder, a short, or a missing `JWT_SECRET`. Every page loads in Chrome with no CSP violations. Both images still report 0 HIGH/CRITICAL.
 
+### 21 Sep 2026: SonarCloud blockers (Docker build secrets)
+
+**Detected by:** SonarCloud's first analysis with coverage (pipeline on `496acd3`): 2 × **Blocker**, "Make sure that using ARG/ENV to handle a secret is safe here" on `ktebna/Dockerfile` lines 9–10 (`VITE_GOOGLE_MAPS_API_KEY`).
+
+**Assessment:** the practical exposure was low. The value only existed in the discarded build stage, never in the shipped Nginx image, and a Maps *browser* key is public by design (Vite embeds it in the JS bundle, which is why the key must be referrer-restricted). But build args and `ENV` values are recorded in image metadata and build history, which is the wrong pattern for anything secret.
+
+**Fix:** the key is now a BuildKit secret mounted only for the `npm run build` step (`RUN --mount=type=secret,id=maps_key,required=false`). CI passes it with `--secret id=maps_key,env=VITE_GOOGLE_MAPS_API_KEY` (with `DOCKER_BUILDKIT=1`), and Compose uses a build `secrets:` entry. Non-secret settings (`VITE_API_URL`, the Map ID) stay as build args.
+
+**Verification:** built with a fake key, the key appears in the JS bundle (as intended) and **0 times** in `docker image inspect` or `docker history --no-trunc`. With an empty or absent secret, the build succeeds and the bundle contains no key. Tested for plain `docker build`, the CI invocation, and Compose.
+
+**Caveat found while testing:** BuildKit doesn't include secret values in its cache key, so a cached build step can keep an old key. CI is unaffected (every job gets a fresh Docker daemon); locally, rebuild the frontend with `--no-cache` after changing the key (documented in the README).
+
 ---
 
 ## Application security controls
@@ -107,7 +119,7 @@ A full audit of the repository, its history, Docker Compose, the Kubernetes mani
 | Outbound calls | The mailer is called asynchronously with 10 s connect / 90 s read timeouts, so a slow or unreachable mailer can't tie up request threads or delay chat messages. |
 | Secrets in config | No secret has a default value anywhere in the repository; Compose and Spring refuse to start without them. `.env*` files (except the empty `.env.example` templates), keys, certificates, SQL dumps and uploads are git-ignored and excluded from Docker build contexts. |
 | Network exposure | Compose publishes every port on `127.0.0.1` only; in Kubernetes, MySQL and the backend are `ClusterIP`. |
-| Google Maps key | Browser keys are public by design. It must be **restricted by HTTP referrer** in Google Cloud Console and stored as a **masked** CI/CD variable. |
+| Google Maps key | Browser keys are public by design. It must be **restricted by HTTP referrer** in Google Cloud Console and stored as a **masked** CI/CD variable. Docker builds receive it as a BuildKit secret, never a build arg, so it isn't recorded in image history. |
 
 ---
 

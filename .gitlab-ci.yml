@@ -187,14 +187,20 @@ build-frontend:
 
   variables:
     DOCKER_HOST: tcp://docker:2375
+    # `--secret` needs BuildKit; don't rely on the CLI default.
+    DOCKER_BUILDKIT: "1"
 
   script:
 
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
 
+    # The Maps key goes in as a BuildKit secret (never a --build-arg), so it
+    # doesn't end up in the image history. Exported even when unset, because
+    # `env=` needs the variable to exist; an empty key just hides the maps.
+    - export VITE_GOOGLE_MAPS_API_KEY="${VITE_GOOGLE_MAPS_API_KEY:-}"
     - docker build
+      --secret id=maps_key,env=VITE_GOOGLE_MAPS_API_KEY
       --build-arg VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
-      --build-arg VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}
       --build-arg VITE_GOOGLE_MAPS_MAP_ID=${VITE_GOOGLE_MAPS_MAP_ID:-}
       -t $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
       -t $FRONTEND_IMAGE:latest

@@ -273,7 +273,8 @@ Secrets live in `.env` files that are **never committed** (see `.gitignore`). St
 1. In Google Cloud Console, create an API key.
 2. Enable the **Maps JavaScript API** and **Places API (New)** for it.
 3. Restrict the key by HTTP referrer (for example `http://localhost:5173/*` plus your production domain).
-4. Put the key in `ktebna/.env` for local development, and in a masked GitLab CI/CD variable `VITE_GOOGLE_MAPS_API_KEY` for pipeline builds.
+4. Put the key in `ktebna/.env` for local development (`npm run dev`), and in a masked GitLab CI/CD variable `VITE_GOOGLE_MAPS_API_KEY` for pipeline builds.
+5. For Docker Compose builds, set `VITE_GOOGLE_MAPS_API_KEY` in the root `.env`. It reaches the build as a BuildKit **secret** (never a build argument), so it doesn't end up in the image history. BuildKit doesn't include secret values in its cache key, so after adding or changing the key rebuild with `docker compose build --no-cache frontend`.
 
 Without a key, everything else keeps working; the "Open in Google Maps" link on book pages does not need a key.
 

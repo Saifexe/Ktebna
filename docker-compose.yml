@@ -57,8 +57,11 @@ services:
       context: ./ktebna
       args:
         VITE_API_URL: ${VITE_API_URL:-}
-        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
         VITE_GOOGLE_MAPS_MAP_ID: ${VITE_GOOGLE_MAPS_MAP_ID:-}
+      # Passed as a build secret, not an arg (see ktebna/Dockerfile). After
+      # changing the key, rebuild with: docker compose build --no-cache frontend
+      secrets:
+        - maps_key
     container_name: ktebna-frontend
     restart: unless-stopped
     depends_on:
@@ -95,6 +98,10 @@ services:
       - "127.0.0.1:3000:3000"
     depends_on:
       - prometheus
+
+secrets:
+  maps_key:
+    environment: VITE_GOOGLE_MAPS_API_KEY
 
 volumes:
   mysql_data:
