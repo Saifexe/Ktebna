@@ -68,7 +68,7 @@ Old `/account/*` URLs redirect to their new equivalents.
 
 **Everywhere**
 - English, French, and Arabic, with full right-to-left layout in Arabic.
-- Free PDF library of public-domain books (`/books`).
+- Free PDF library (`/books`): readers share links to books that are free to read (public domain or publisher excerpts), with language and category filters.
 
 ---
 
@@ -161,9 +161,9 @@ flowchart TB
 │   ├── Dockerfile
 │   └── src/main/java/com/ktebna/backend/
 │       ├── config/           Security (JWT filter chain, CORS), static uploads
-│       ├── controller/       Auth, Post, SavedPost, Conversation, Message, User
+│       ├── controller/       Auth, Post, SavedPost, Conversation, Message, User, Library
 │       ├── dto/              Request/response records
-│       ├── entity/           User, Post, SavedPost, Conversation, Message
+│       ├── entity/           User, Post, SavedPost, Conversation, Message, LibraryBook
 │       ├── repository/       Spring Data JPA repositories
 │       ├── security/         JwtUtil, JwtAuthFilter
 │       └── service/          FileStorageService, EmailNotificationService
@@ -171,14 +171,13 @@ flowchart TB
 ├── ktebna/                   React frontend (Vite)
 │   ├── Dockerfile, nginx.conf
 │   └── src/
-│       ├── pages/            Catalog, BookDetail, Sell, Saved, Messages, Profile, About, Contact
+│       ├── pages/            Catalog, BookDetail, Sell, Saved, Messages, Profile, About, Contact, Library, LibraryBook, ShareBook
 │       ├── components/       Header, BottomNav, BookCard, MessagePopups, maps/ …
 │       ├── ui/               Button, Badge, Avatar, UnreadBadge, Spinner, EmptyState
 │       ├── context/          Auth prompt, notifications (unread polling)
 │       ├── hooks/            useSaved, useUnread, useRequireAuth
 │       ├── lib/              Listing vocabulary, map helpers
 │       ├── locales/          EN/FR/AR strings for the redesigned screens
-│       ├── books/            Free PDF library
 │       ├── i18n.js           i18next setup (+ RTL for Arabic)
 │       └── index.css         Design tokens (light + dark)
 ├── k8s/                      Kubernetes manifests
@@ -307,9 +306,13 @@ All endpoints are under `/api`. **Auth** means a valid `Authorization: Bearer <j
 | `POST` | `/messages` | ✓ | Body `{ otherUserId, bookName?, messageContent }`; creates the conversation if needed |
 | `PUT` | `/account/name` | ✓ | Rename |
 | `POST` | `/account/profile-picture` | ✓ | Upload avatar (multipart `file`) |
+| `GET` | `/library` | – | Free library. Query: `search`, `language` (`en` · `fr` · `ar`), `category`, `page`, `size` |
+| `GET` | `/library/{id}` | – | One library book |
+| `POST` | `/library` | ✓ | Share a book (multipart: `title`, `language`, `pdfUrl` required; `author`, `category`, `description`, `image`) |
+| `DELETE` | `/library/{id}` | ✓ sharer | Remove a book you shared |
 | `DELETE` | `/account` | ✓ | Delete account and everything that belongs to it |
 
-Hidden listings return `404` to everyone except their owner. Email addresses are only returned to their owner. Abuse-prone endpoints are rate-limited and answer `429` with `Retry-After`.
+Hidden listings return `404` to everyone except their owner. Email addresses are only returned to their owner. Abuse-prone endpoints are rate-limited and answer `429` with `Retry-After`. Text fields are length-limited to their database columns (a longer value is a `400`), and page sizes are capped at 50.
 
 **Listing fields** (multipart): `bookName` (required), `bookAuthor`, `bookCategory`, `bookCondition` (`likeNew` · `gentlyRead` · `wellLoved` · `collectors`), `bookDealType` (`sell` · `exchange` · `donate`), `bookDeal` (price or swap wish), `bookDescription`, `bookLocation` (city), `pickupLat`, `pickupLng`, `pickupSpot`, `isPublic`, `image`.
 
@@ -319,12 +322,12 @@ Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by fil
 
 ## Testing
 
-The backend has **63 automated tests** with **94.5% line coverage**:
+The backend has **76 automated tests** with **94.6% line coverage**:
 
 | Layer | What it covers | How |
 |---|---|---|
 | Unit (`src/test/java/.../unit`) | JWT signing and validation (including refusing weak secrets), image-content checks, the rate limiter (limits, per-user buckets, spoofed `X-Real-IP`), the email notifier | Plain JUnit 5, no Spring or database; runs in milliseconds |
-| Integration (`src/test/java/.../api`) | The HTTP API end to end: sign-up and login, listings (search, filters, hidden posts, ownership), saved books (6-book cap), messaging and unread counts, account deletion, privacy (no leaked emails), error responses, 401 vs 403 | Full Spring Boot app with MockMvc against a **real MySQL 8** started by [Testcontainers](https://testcontainers.com); the mailer is mocked |
+| Integration (`src/test/java/.../api`) | The HTTP API end to end: sign-up and login, listings (search, filters, hidden posts, ownership), saved books (6-book cap), messaging and unread counts, the free library, input limits, account deletion, privacy (no leaked emails), error responses, 401 vs 403 | Full Spring Boot app with MockMvc against a **real MySQL 8** started by [Testcontainers](https://testcontainers.com); the mailer is mocked |
 
 Every bug fixed in v2 has a regression test (visibility toggle, deleting bookmarked posts or accounts with data, leaked emails, expired tokens answering 403 instead of 401, …).
 

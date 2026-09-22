@@ -17,8 +17,9 @@ import Profile from "./pages/Profile.jsx";
 import Contact from "./pages/Contact.jsx";
 import About from "./pages/About.jsx";
 import LoginPage from "./auth/LoginFinal.jsx";
-import Books from "./books/Books.jsx";
-import Book from "./books/Book.jsx";
+import Library from "./pages/Library.jsx";
+import LibraryBook from "./pages/LibraryBook.jsx";
+import ShareBook from "./pages/ShareBook.jsx";
 
 function App() {
   return (
@@ -32,14 +33,15 @@ function App() {
                 <Route element={<Layout />}>
                   <Route path="/" element={<Catalog />} />
                   <Route path="/book/:id" element={<BookDetail />} />
-                  <Route path="/books" element={<Books />} />
-                  <Route path="/books/:name" element={<Book />} />
+                  <Route path="/books" element={<Library />} />
+                  <Route path="/books/:id" element={<LibraryBook />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />
 
                   <Route element={<RequireAuth />}>
                     <Route path="/saved" element={<Saved />} />
+                    <Route path="/books/new" element={<ShareBook />} />
                     <Route path="/sell" element={<Sell />} />
                     <Route path="/sell/:id" element={<Sell />} />
                     <Route path="/messages" element={<Messages />} />

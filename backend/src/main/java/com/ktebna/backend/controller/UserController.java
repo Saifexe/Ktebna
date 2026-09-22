@@ -5,6 +5,7 @@ import com.ktebna.backend.dto.UserDto;
 import com.ktebna.backend.entity.User;
 import com.ktebna.backend.exception.ApiException;
 import com.ktebna.backend.repository.ConversationRepository;
+import com.ktebna.backend.repository.LibraryBookRepository;
 import com.ktebna.backend.repository.MessageRepository;
 import com.ktebna.backend.repository.PostRepository;
 import com.ktebna.backend.repository.SavedPostRepository;
@@ -25,6 +26,7 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final PostRepository postRepository;
+    private final LibraryBookRepository libraryBookRepository;
     private final SavedPostRepository savedPostRepository;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
@@ -64,6 +66,7 @@ public class UserController {
         savedPostRepository.deleteAllInvolvingUser(userId);
         messageRepository.deleteAllInvolvingUser(userId);
         conversationRepository.deleteAllInvolvingUser(userId);
+        libraryBookRepository.deleteAllByOwner(userId);
         postRepository.deleteAllByOwner(userId);
         userRepository.deleteById(userId);
     }

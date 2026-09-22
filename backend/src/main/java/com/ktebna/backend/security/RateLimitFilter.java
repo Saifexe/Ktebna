@@ -19,7 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fixed-window rate limits on the endpoints worth abusing: login (password
- * guessing), register (account spam), and sending messages or listings (spam).
+ * guessing), register (account spam), and sending messages, listings or
+ * library books (spam).
  * In-memory, so limits are per backend instance; that matches the single-replica
  * deployments in docker-compose.yml and k8s/.
  *
@@ -35,7 +36,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             new Rule("POST", "/api/auth/login", 10, 60_000, false),
             new Rule("POST", "/api/auth/register", 5, 60_000, false),
             new Rule("POST", "/api/messages", 30, 60_000, true),
-            new Rule("POST", "/api/posts", 10, 60_000, true)
+            new Rule("POST", "/api/posts", 10, 60_000, true),
+            new Rule("POST", "/api/library", 10, 60_000, true)
     );
 
     private static final class Window {
