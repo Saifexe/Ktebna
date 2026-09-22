@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { mediaUrl } from "../../apiClient";
 import {
   Dialog,
   DialogTitle,
@@ -73,7 +74,7 @@ const UpdateProfilePictureModal = ({
               />
             ) : (
               <img
-                src={userProfilePicture}
+                src={mediaUrl(userProfilePicture)}
                 alt={t("profile.changePhoto")}
                 className="w-32 h-32 rounded-full object-cover"
               />

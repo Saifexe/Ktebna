@@ -24,10 +24,6 @@ if ($missing) {
     Write-Error "Set these in .env first: $($missing -join ', ')"
 }
 
-# Compose points APP_BASE_URL at the Docker backend; locally the default
-# (http://localhost:8080) is what the browser can reach.
-Remove-Item Env:APP_BASE_URL -ErrorAction SilentlyContinue
-
 $dbHost = if ($env:DB_HOST) { $env:DB_HOST } else { "localhost" }
 $dbPort = if ($env:DB_PORT) { $env:DB_PORT } else { "3306" }
 Write-Host "Starting backend on http://localhost:8080 (MySQL at ${dbHost}:${dbPort})" -ForegroundColor Cyan

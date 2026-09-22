@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BookOpen } from "lucide-react";
+import { mediaUrl } from "../apiClient";
 
 // Cover image with a paper-toned placeholder when a post has no (or a broken) image.
 const BookCover = ({ src, alt, className = "", imgClassName = "object-cover" }) => {
@@ -19,7 +20,7 @@ const BookCover = ({ src, alt, className = "", imgClassName = "object-cover" }) 
 
   return (
     <img
-      src={src}
+      src={mediaUrl(src)}
       alt={alt}
       loading="lazy"
       onError={() => setFailed(true)}

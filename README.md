@@ -255,7 +255,6 @@ Secrets live in `.env` files that are **never committed** (see `.gitignore`). St
 | `JWT_SECRET` | **required** | JWT signing key, at least 32 random characters. The backend refuses to start with anything weaker. |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Browser origins allowed to call the API directly (the Nginx proxy doesn't need it) |
 | `JWT_EXPIRATION_MS` | `604800000` (7 days) | Token lifetime |
-| `APP_BASE_URL` | `http://localhost:8080` | Public base URL used to build image links |
 | `UPLOAD_DIR` | `./uploads` | Where uploaded images are stored |
 | `MAILER_URL` | external Render service | Email notification endpoint |
 | `DDL_AUTO` | `update` | Hibernate schema mode |

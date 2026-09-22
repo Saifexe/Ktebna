@@ -31,7 +31,6 @@ class FileStorageServiceTest {
     void setUp() {
         storage = new FileStorageService();
         ReflectionTestUtils.setField(storage, "uploadDir", uploadDir.toString());
-        ReflectionTestUtils.setField(storage, "baseUrl", "http://localhost:8080");
     }
 
     static byte[] withHeader(int... header) {
@@ -57,7 +56,7 @@ class FileStorageServiceTest {
         // The client claims a misleading name; the stored extension must come from the bytes.
         String url = storage.store(new MockMultipartFile("image", "holiday.exe", "application/octet-stream", content));
 
-        assertThat(url).startsWith("http://localhost:8080/uploads/").endsWith(ext);
+        assertThat(url).startsWith("/uploads/").endsWith(ext);
         String fileName = url.substring(url.lastIndexOf('/') + 1);
         assertThat(fileName).doesNotContain("holiday");
         assertThat(Files.readAllBytes(uploadDir.resolve(fileName))).isEqualTo(content);

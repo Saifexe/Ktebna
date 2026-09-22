@@ -25,6 +25,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class MessageController {
 
+    private static final int PREVIEW_LENGTH = 1000;
+
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
@@ -43,12 +45,15 @@ public class MessageController {
     }
 
     // Mirrors the original sendMessage() flow: get-or-create conversation,
-    // enforce the 2-message-per-user limit, persist the message, update the
-    // conversation preview, then fire an (non-blocking) email notification.
+    // persist the message, update the conversation preview, then fire a
+    // (non-blocking) email notification.
     @PostMapping("/messages")
     @Transactional
     public SendMessageResponse sendMessage(@AuthenticationPrincipal User currentUser,
                                             @Valid @RequestBody SendMessageRequest req) {
+        if (req.getOtherUserId().equals(currentUser.getId())) {
+            throw new ApiException("You cannot message yourself", HttpStatus.BAD_REQUEST);
+        }
         User otherUser = userRepository.findById(req.getOtherUserId())
                 .orElseThrow(() -> new ApiException("Recipient not found", HttpStatus.NOT_FOUND));
 
@@ -73,7 +78,7 @@ public class MessageController {
         message.setMessageContent(req.getMessageContent());
         message = messageRepository.save(message);
 
-        conversation.setLastMessageContent(req.getMessageContent());
+        conversation.setLastMessageContent(preview(req.getMessageContent()));
         conversation.setLastMessageSender(currentUser.getId());
         conversation.setUpdatedAt(LocalDateTime.now());
         // Writing a message means you've seen everything before it.
@@ -94,6 +99,11 @@ public class MessageController {
                 ConversationController.toResponseStatic(conversation),
                 toResponse(message)
         );
+    }
+
+    // Messages hold up to 2000 characters; the preview column holds 1000.
+    private static String preview(String content) {
+        return content.length() <= PREVIEW_LENGTH ? content : content.substring(0, PREVIEW_LENGTH - 1) + "…";
     }
 
     private MessageResponse toResponse(Message m) {

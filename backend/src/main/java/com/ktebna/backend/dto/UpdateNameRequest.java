@@ -1,6 +1,7 @@
 package com.ktebna.backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,5 +9,6 @@ import lombok.Setter;
 @Setter
 public class UpdateNameRequest {
     @NotBlank
+    @Size(max = 120)
     private String name;
 }

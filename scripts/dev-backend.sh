@@ -26,10 +26,6 @@ for var in DB_PASSWORD JWT_SECRET; do
   fi
 done
 
-# Compose points APP_BASE_URL at the Docker backend; locally the default
-# (http://localhost:8080) is what the browser can reach.
-unset APP_BASE_URL
-
 echo "Starting backend on http://localhost:8080 (MySQL at ${DB_HOST:-localhost}:${DB_PORT:-3306})"
 cd "$root/backend"
 exec ./mvnw spring-boot:run

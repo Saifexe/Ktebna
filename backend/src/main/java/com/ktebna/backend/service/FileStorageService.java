@@ -20,9 +20,6 @@ public class FileStorageService {
     @Value("${app.upload.dir}")
     private String uploadDir;
 
-    @Value("${app.base-url}")
-    private String baseUrl;
-
     public String store(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ApiException("File is empty", HttpStatus.BAD_REQUEST);
@@ -40,7 +37,9 @@ public class FileStorageService {
             String fileName = UUID.randomUUID() + ext;
             Files.copy(file.getInputStream(), dir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
 
-            return baseUrl + "/uploads/" + fileName;
+            // Relative, so links survive a change of host or domain: nginx (or the
+            // frontend's API base URL in dev) serves /uploads from the backend.
+            return "/uploads/" + fileName;
         } catch (IOException e) {
             throw new ApiException("Failed to store file", HttpStatus.INTERNAL_SERVER_ERROR);
         }

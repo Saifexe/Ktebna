@@ -1,10 +1,12 @@
+import { mediaUrl } from "../apiClient";
+
 // Profile picture with an initial-letter fallback (most accounts have none).
 const Avatar = ({ src, name, className = "size-10", ring = false }) => {
   const ringCls = ring ? "border-2 border-primary/30" : "";
   if (src) {
     return (
       <img
-        src={src}
+        src={mediaUrl(src)}
         alt={name || ""}
         className={`${className} ${ringCls} shrink-0 rounded-full object-cover`}
       />

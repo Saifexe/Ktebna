@@ -9,6 +9,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -185,5 +186,30 @@ class ListingApiTest extends ApiTestBase {
         mvc.perform(req)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Only JPEG, PNG, GIF or WebP images are allowed"));
+    }
+
+    @Test
+    void overlongFieldsAreA400NotAServerError() throws Exception {
+        Account seller = register("Seller");
+        mvc.perform(listing(HttpMethod.POST, "/api/posts", seller,
+                        Map.of("bookName", "Long notes", "bookDescription", "x".repeat(2001))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(listing(HttpMethod.POST, "/api/posts", seller,
+                        Map.of("bookName", "Long city", "bookLocation", "x".repeat(101))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void pageSizeIsCappedAndNegativePagesAreClamped() throws Exception {
+        mvc.perform(get("/api/posts").param("page", "-3").param("size", "1000000"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(lessThanOrEqualTo(50)));
+    }
+
+    @Test
+    void uploadedCoversAreStoredAsRelativePaths() throws Exception {
+        Account seller = register("Seller");
+        JsonNode post = createPost(seller, unique("Relative"));
+        assertThat(post.path("bookImage").asText()).startsWith("/uploads/").endsWith(".jpg");
     }
 }

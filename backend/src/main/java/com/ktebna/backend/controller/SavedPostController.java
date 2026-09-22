@@ -9,7 +9,6 @@ import com.ktebna.backend.repository.PostRepository;
 import com.ktebna.backend.repository.SavedPostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +31,7 @@ public class SavedPostController {
                                               @RequestParam(defaultValue = "0") int page,
                                               @RequestParam(defaultValue = "12") int size) {
         Page<SavedPost> result = savedPostRepository.findByUserIdAndPost_IsPublicTrue(
-                currentUser.getId(), PageRequest.of(page, size));
+                currentUser.getId(), Paging.of(page, size));
 
         List<PostResponse> data = result.getContent().stream()
                 .map(sp -> PostResponse.from(sp.getPost()))
@@ -64,6 +63,10 @@ public class SavedPostController {
         }
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ApiException("Post not found", HttpStatus.NOT_FOUND));
+        // Hidden listings can't be bookmarked; same 404 as a missing post, so ids can't be probed.
+        if (!post.isPublic()) {
+            throw new ApiException("Post not found", HttpStatus.NOT_FOUND);
+        }
 
         SavedPost sp = new SavedPost();
         sp.setUser(currentUser);

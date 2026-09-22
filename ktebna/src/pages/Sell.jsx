@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { Camera, ChevronLeft, Lightbulb, Loader2, Send, ShieldCheck, X } from "lucide-react";
-import apiClient from "../apiClient";
+import apiClient, { mediaUrl } from "../apiClient";
 import { AuthContext } from "../auth/AuthProvider";
 import Button from "../ui/Button";
 import Spinner from "../ui/Spinner";
@@ -105,7 +105,7 @@ const Sell = () => {
       pickupSpot: existing.pickupSpot || "",
       isPublic: existing.isPublic ?? true,
     });
-    setPreview(existing.bookImage || null);
+    setPreview(mediaUrl(existing.bookImage) || null);
   }, [existing, user?.id, navigate, t]);
 
   useEffect(() => {

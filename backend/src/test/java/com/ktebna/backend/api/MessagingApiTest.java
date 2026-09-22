@@ -118,4 +118,35 @@ class MessagingApiTest extends ApiTestBase {
         mvc.perform(jsonBody(as(buyer, post("/api/messages")), Map.of("otherUserId", 999_999_999, "messageContent", "hi")))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void youCannotMessageYourself() throws Exception {
+        Account loner = register("Loner");
+        mvc.perform(jsonBody(as(loner, post("/api/messages")),
+                        Map.of("otherUserId", loner.id(), "messageContent", "Hello me")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void overlongMessagesAreA400AndLongOnesKeepAShortPreview() throws Exception {
+        Account buyer = register("Buyer");
+        Account seller = register("Seller");
+        mvc.perform(jsonBody(as(buyer, post("/api/messages")),
+                        Map.of("otherUserId", seller.id(), "messageContent", "x".repeat(2001))))
+                .andExpect(status().isBadRequest());
+
+        // 1500 characters fit the message column (2000) but not the preview column (1000).
+        JsonNode sent = send(buyer, seller, "Dune", "y".repeat(1500));
+        assertThat(sent.path("message").path("messageContent").asText()).hasSize(1500);
+        assertThat(sent.path("conversation").path("lastMessageContent").asText()).hasSize(1000).endsWith("…");
+    }
+
+    @Test
+    void bothUsersWritingFirstStillShareOneConversation() throws Exception {
+        Account a = register("Alice");
+        Account b = register("Bob");
+        long first = send(a, b, "Dune", "Hi Bob").path("conversation").path("id").asLong();
+        long second = send(b, a, "Dune", "Hi Alice").path("conversation").path("id").asLong();
+        assertThat(second).isEqualTo(first);
+    }
 }

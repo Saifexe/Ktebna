@@ -30,4 +30,9 @@ apiClient.interceptors.response.use(
 );
 
 export const API_BASE_URL = API_URL;
+
+// Uploaded images are stored as relative "/uploads/..." paths. Behind nginx they
+// are same-origin; with the Vite dev server they live on the API host instead.
+export const mediaUrl = (path) =>
+  typeof path === "string" && path.startsWith("/uploads/") ? `${API_URL}${path}` : path;
 export default apiClient;

@@ -60,4 +60,14 @@ class SavedPostsApiTest extends ApiTestBase {
     void savingRequiresLogin() throws Exception {
         mvc.perform(post("/api/saved-posts/1")).andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void hiddenListingsCannotBeBookmarked() throws Exception {
+        Account seller = register("Seller");
+        Account reader = register("Reader");
+        long id = createPost(seller, unique("Hidden"), false, Map.of()).path("id").asLong();
+
+        mvc.perform(as(reader, post("/api/saved-posts/" + id))).andExpect(status().isNotFound());
+        mvc.perform(as(reader, get("/api/saved-posts/ids"))).andExpect(jsonPath("$", hasSize(0)));
+    }
 }

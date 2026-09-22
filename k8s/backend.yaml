@@ -28,6 +28,10 @@ spec:
       labels:
         app: backend
     spec:
+      # The image runs as uid/gid 10001; fsGroup makes the uploads PVC writable
+      # for it (a fresh volume is otherwise owned by root).
+      securityContext:
+        fsGroup: 10001
       imagePullSecrets:
         - name: gitlab-registry
       containers:
@@ -60,8 +64,6 @@ spec:
                 secretKeyRef:
                   name: backend-secret
                   key: jwt-secret
-            - name: APP_BASE_URL
-              value: http://backend:8080
             - name: DDL_AUTO
               value: update
             - name: UPLOAD_DIR

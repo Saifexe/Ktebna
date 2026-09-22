@@ -12,7 +12,6 @@ import com.ktebna.backend.service.FileStorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +42,7 @@ public class PostController {
         Page<Post> result = postRepository.findPublicFeed(
                 blankToNull(category), blankToNull(dealType), blankToNull(location),
                 search == null || search.isBlank() ? null : search.trim(),
-                PageRequest.of(page, size));
+                Paging.of(page, size));
 
         return Map.of(
                 "data", result.getContent().stream().map(this::toResponse).toList(),
@@ -75,7 +74,7 @@ public class PostController {
             throw new ApiException("Authentication required", HttpStatus.UNAUTHORIZED);
         }
         Page<Post> result = postRepository.findByUserIdOrderByCreatedAtDesc(
-                currentUser.getId(), PageRequest.of(page, size));
+                currentUser.getId(), Paging.of(page, size));
         return Map.of(
                 "data", result.getContent().stream().map(this::toResponse).toList(),
                 "count", result.getTotalElements(),

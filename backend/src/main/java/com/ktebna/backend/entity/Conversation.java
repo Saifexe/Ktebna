@@ -9,7 +9,12 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "conversations")
+// One conversation per pair. The lower user id is always stored as firstUser,
+// so (first, second) is unique and two simultaneous first messages can't
+// create duplicates.
+@Table(name = "conversations", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_conversation_pair", columnNames = {"first_user_id", "second_user_id"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
