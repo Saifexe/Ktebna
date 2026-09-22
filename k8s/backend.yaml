@@ -32,17 +32,14 @@ spec:
       # for it (a fresh volume is otherwise owned by root).
       securityContext:
         fsGroup: 10001
-      imagePullSecrets:
-        - name: gitlab-registry
       containers:
         - name: backend
-          # TODO (documented, not implemented — k8s redeploys parked, see README Known Issues):
-          # Replace manual digest pinning with $CI_COMMIT_SHORT_SHA-tagged images once
-          # the k8s image-pull bug is resolved. CI already builds these tags
-          # (.gitlab-ci.yml build-backend/build-frontend jobs) — just needs wiring
-          # into a deploy stage and this image: field.
-          image: registry.gitlab.com/saifexd-group/ktebna/backend@sha256:f99e387d4f37f9233274f9dcdfaaf1784ad068e0028cfc917f7a23aa89910d0d
-          imagePullPolicy: IfNotPresent
+          # Loaded straight into the node, not pulled: the node can't pull from the
+          # GitLab registry (see README Known Issues). Build with Compose, then run
+          # scripts/k8s-load-images.sh <tag>. `Never` makes a missing image fail
+          # loudly instead of falling back to the broken registry pull.
+          image: ktebna/backend:a1e79d1
+          imagePullPolicy: Never
           ports:
             - containerPort: 8080
           env:
@@ -71,11 +68,19 @@ spec:
           volumeMounts:
             - name: backend-uploads
               mountPath: /app/uploads
+          # Readiness: "can you serve requests?" /actuator/health answers UP only
+          # when the app AND its database connection work; until then the Service
+          # sends it no traffic.
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /actuator/health
               port: 8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 20
             periodSeconds: 10
+            failureThreshold: 3
+          # Liveness: "is the process still alive?" Kept to the open port on
+          # purpose: if MySQL goes down, restarting the backend wouldn't fix it,
+          # so a DB outage should mark the pod not-ready, not restart it.
           livenessProbe:
             tcpSocket:
               port: 8080

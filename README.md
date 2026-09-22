@@ -103,17 +103,18 @@ flowchart LR
         T[test] --> S[sonarcloud] --> SEC[security] --> B[build] --> SC[scan] --> P[publish]
     end
     CI -->|pushes scanned images| REG[(GitLab Container Registry)]
-    REG -->|pulled by| K8S
+    REG -.->|"pull (blocked on the local node)"| K8S
+    LOCAL["Compose-built images<br/>scripts/k8s-load-images.sh"] -->|loaded into the node| K8S
 
     subgraph K8S["Kubernetes namespace: ktebna"]
         direction LR
-        FE["frontend<br/>Nginx + React SPA<br/>(LoadBalancer)"] -->|"/api/* proxied"| BE["backend<br/>Spring Boot API<br/>(ClusterIP)"]
+        FE["frontend<br/>Nginx + React SPA<br/>(LoadBalancer)"] -->|"/api/* and /uploads/* proxied"| BE["backend<br/>Spring Boot API<br/>(ClusterIP)"]
         BE --> DB[("mysql<br/>PVC-backed<br/>(ClusterIP)")]
     end
     BE -.->|async| MAIL["Mailer service<br/>(external)"]
 ```
 
-Nginx serves the frontend as static assets and reverse-proxies `/api/*` requests to the backend Service. Docker Compose and Kubernetes both have a service named `backend` on port `8080`, so the same image works in both environments without knowing a hostname at build time.
+Nginx serves the frontend as static assets and reverse-proxies `/api/*` and `/uploads/*` requests to the backend Service. Docker Compose and Kubernetes both have a service named `backend` on port `8080`, so the same image works in both environments without knowing a hostname at build time.
 
 ### Backend domain model
 
@@ -366,7 +367,7 @@ Images reach the registry only after their own scan passes, and what gets pushed
 | Variable | Required | Used by |
 |---|---|---|
 | `SONAR_TOKEN` | yes | `sonarcloud-check` |
-| `VITE_API_URL` | no | `build-frontend` (defaults to `http://localhost:8080`) |
+| `VITE_API_URL` | no | `build-frontend` (defaults to empty: same-origin `/api` through the image's Nginx) |
 | `VITE_GOOGLE_MAPS_API_KEY` | no | `build-frontend`; mark it **masked** |
 | `VITE_GOOGLE_MAPS_MAP_ID` | no | `build-frontend` |
 
@@ -405,11 +406,16 @@ Monitoring is not deployed to Kubernetes (see [Known issues](#known-issues)).
 Manifests live in `k8s/`:
 - `namespace.yaml`: the `ktebna` namespace
 - `mysql.yaml`: MySQL Deployment, Service, and PVC
-- `backend.yaml`: backend Secret, PVC (for uploads), Deployment, and Service
-- `frontend.yaml`: frontend Deployment and Service (`type: LoadBalancer`)
+- `mysql.yaml` uses the `Recreate` strategy: two MySQL pods can't share one data volume, so the old pod stops before the new one starts
+- `backend.yaml`: PVC (for uploads), Deployment, and Service. Readiness checks `/actuator/health` (app **and** database); liveness only checks that the process answers, so a database outage takes the pod out of rotation instead of restarting it
+- `frontend.yaml`: frontend Deployment (non-root Nginx on port 8080, proxying `/api` and `/uploads` to the `backend` Service) and Service (`type: LoadBalancer`, port 80 → 8080)
+
+Secrets are created by hand, never committed; see [k8s/README.md](./k8s/README.md).
 
 ### Deploy
 ```bash
+docker compose build backend frontend
+scripts/k8s-load-images.sh <tag>    # e.g. the short commit SHA; must match the tag in the manifests
 kubectl apply -f k8s/
 ```
 
@@ -420,9 +426,9 @@ kubectl port-forward svc/frontend -n ktebna 8081:80
 Then open **http://localhost:8081**. (The LoadBalancer's external IP is not directly reachable from the host in this local Docker Desktop setup, so port-forwarding is the supported access method.)
 
 ### Image references
-Both `backend.yaml` and `frontend.yaml` pin their container images to an exact digest (`@sha256:...`) rather than a floating `:latest` tag, so a `kubectl apply` can never silently redeploy unintended content. See the **[Rollback runbook](#rollback-runbook)** below for how to update these safely.
+The local node can't pull from the GitLab registry (see [Known issues](#known-issues)), so images are **loaded straight into the node** instead: `scripts/k8s-load-images.sh` tags the Compose-built images as `ktebna/<app>:<tag>` and imports them into the node's container runtime. The manifests reference that exact tag with `imagePullPolicy: Never`, so a missing image fails loudly (`ErrImageNeverPull`) instead of falling back to the broken pull, and a `kubectl apply` never picks up unintended content. Use a new tag (the commit SHA) for every build, never `:latest`. See the **[Rollback runbook](#rollback-runbook)** below for how to switch versions safely.
 
-Private registry images require a `gitlab-registry` pull secret (a Kubernetes `docker-registry` Secret built from a GitLab Deploy Token) referenced via `imagePullSecrets` in both Deployments.
+Once the registry pull works again, point `image:` back at `registry.gitlab.com/saifexd-group/ktebna/<app>:<short-sha>` (the tags CI publishes), set `imagePullPolicy: IfNotPresent`, and add a `gitlab-registry` pull secret through `imagePullSecrets`.
 
 ---
 
@@ -465,12 +471,14 @@ Check the exact error with `kubectl describe pod <pod-name> -n ktebna` and read 
 2. **`manifest unknown` / `not found`:** the tag doesn't exist. GitLab CI tags images with the 8-character short commit SHA (`$CI_COMMIT_SHORT_SHA`), so verify the exact tag in the GitLab Container Registry UI rather than assuming its length.
 3. **`short read: unexpected EOF`:** a known, unresolved issue on this project's local Docker Desktop Kubernetes node; see SECURITY.md and the project history for the full diagnostic trail. It is not caused by credentials or a bad tag; both were independently ruled out.
 
+With the current manifests (`imagePullPolicy: Never`), the equivalent error is **`ErrImageNeverPull`**: the tag in the manifest was never loaded into the node. Run `scripts/k8s-load-images.sh <tag>` with that tag. Images loaded earlier stay in the node, so rolling back is just `kubectl set image` to a previous tag.
+
 ---
 
 ## Known issues
 
-- **Kubernetes image pull failure (unresolved, investigated and parked):** the local Docker Desktop Kubernetes node cannot pull newly built images past a fixed point (consistent `short read: unexpected EOF` at an identical byte offset). Ruled out across two sessions: credentials (verified valid via direct registry auth checks), tag vs. digest reference, a full Docker Desktop restart, proxy interference (registry added to Docker Desktop's proxy bypass list, then retried), and a full Kubernetes cluster reset. A control pull of a public Docker Hub image succeeded on the same node, so the issue is scoped to this private registry's pull path, not general networking. Deployments are pinned to the last successfully pulled image as a verified workaround; application-level changes are verified via Docker Compose.
-- **Monitoring** is implemented and verified in Docker Compose only (metrics scraping, dashboard auto-provisioning, live panel data). Not deployed to Kubernetes, since the k8s track is parked.
+- **Kubernetes image pull failure (unresolved, investigated and parked):** the local Docker Desktop Kubernetes node cannot pull newly built images past a fixed point (consistent `short read: unexpected EOF` at an identical byte offset). Ruled out across two sessions: credentials (verified valid via direct registry auth checks), tag vs. digest reference, a full Docker Desktop restart, proxy interference (registry added to Docker Desktop's proxy bypass list, then retried), and a full Kubernetes cluster reset. A control pull of a public Docker Hub image succeeded on the same node, so the issue is scoped to this private registry's pull path, not general networking. **Worked around on 22 Sep 2026:** images are now loaded straight into the node (`scripts/k8s-load-images.sh`), so the cluster runs the current app again, verified end to end (sign-up, listing with photo upload, image served back through Nginx, Library API). Until then it had been stuck on August images whose frontend called `localhost:8080` and had no `/api` proxy.
+- **Monitoring** is implemented and verified in Docker Compose only (metrics scraping, dashboard auto-provisioning, live panel data). Not deployed to Kubernetes yet (the cluster runs only MySQL, backend and frontend).
 - **Maps need a key:** without `VITE_GOOGLE_MAPS_API_KEY` the map picker and book-page maps are hidden.
 - **Email notifications can be slow to arrive:** the mailer runs on a free host that sleeps when idle and can take up to a minute to wake. Chat messages are unaffected, because the email is sent in the background.
 - **Near-real-time, not real-time:** unread counts refresh every 8 seconds and an open chat every 5 seconds (polling, not WebSockets).

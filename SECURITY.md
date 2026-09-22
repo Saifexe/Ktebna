@@ -50,8 +50,9 @@ Leaked secrets block unconditionally: a leaked secret needs immediate rotation, 
 | No unique key on the conversation pair | Two simultaneous first messages could create duplicate conversations | Unique constraint `uk_conversation_pair`; a concurrent duplicate returns `409` |
 | Uploads stored as absolute `APP_BASE_URL` links | Every image broke when the host changed; the CSP had to allow `http://localhost:8080` | Relative `/uploads/…` paths proxied by Nginx; existing rows rewritten by `scripts/migrate-relative-upload-urls.sql`; the CSP exception removed |
 | Uploads volume still owned by root after the non-root switch (`94977d6`) | Every cover and avatar upload in Compose failed with "Failed to store file" | One-time `chown` of the existing volume (new volumes inherit the right owner from the image); `fsGroup: 10001` on the k8s backend pod |
+| The k8s cluster's Secrets still held placeholder values (the public JWT placeholder, and 8- and 13-character MySQL passwords), and it ran August images (root backend; frontend calling `localhost:8080` with no `/api` proxy) | Anyone knowing the placeholder could forge JWTs for the cluster's backend; the cluster app didn't work | Found when the current backend's startup check refused the placeholder. All three values rotated to random ones (`ALTER USER` first, so no data loss); current images loaded into the node; CI no longer bakes `localhost:8080` into published frontend images |
 
-**Verification:** 13 new regression tests (76 in total) and pipeline #2872104317. In the running Compose stack, covers and avatars load through `/uploads/`, and new uploads succeed.
+**Verification:** 13 new regression tests (76 in total) and pipeline #2872104317. In the running Compose stack, covers and avatars load through `/uploads/`, and new uploads succeed. In the k8s cluster, sign-up, a listing with a photo upload, the image served back through nginx, and the Library API all work with the rotated secrets.
 
 ### 22 Sep 2026: Frontend dependencies, found while making Trivy blocking
 
