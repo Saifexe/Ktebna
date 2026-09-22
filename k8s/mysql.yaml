@@ -20,6 +20,10 @@ metadata:
   namespace: ktebna
 spec:
   replicas: 1
+  # Stop the old pod before starting the new one: two MySQL instances can't share
+  # one data volume (the new one fails with "Unable to lock ./ibdata1").
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: mysql
