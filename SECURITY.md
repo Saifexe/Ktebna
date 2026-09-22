@@ -130,7 +130,7 @@ Six of the seven gaps listed in the previous review were fixed in the hardening 
 1. **JWT stored in `localStorage`,** which is readable by any script on the page. The CSP now limits which scripts can run, which lowers the risk. Moving to an `HttpOnly` cookie would remove it, but needs CSRF protection in return.
 2. **The CSP's Google Maps allowances are unverified,** because no Maps key was configured when it was tested. After setting `VITE_GOOGLE_MAPS_API_KEY`, open a page with a map and check the browser console for "Refused to…" messages.
 3. **Rate limits are in-memory, per instance.** That fits the single-replica deployments here; scaling the backend out would need a shared store (e.g. Redis) or edge-only limiting.
-4. **Actuator metrics are unauthenticated** (`/actuator/prometheus`). They are only reachable on `127.0.0.1` (Compose) or inside the cluster (Kubernetes), and are not proxied by Nginx. Keep it that way, or add auth before exposing the backend directly.
+4. **Actuator metrics, Prometheus, Alertmanager and Grafana are all unauthenticated or use a single shared admin password**, and none sit behind Nginx. All are bound to `127.0.0.1` only (Compose) or stay inside the cluster (Kubernetes). Keep it that way, or add auth in front of each before exposing the backend directly.
 5. **Traffic between the backend and MySQL is unencrypted** (`useSSL=false`). It stays on the private Docker network or inside the cluster; enable TLS if the database ever moves to another host.
 
 ---

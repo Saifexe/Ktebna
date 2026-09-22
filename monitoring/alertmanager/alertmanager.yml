@@ -1,0 +1,13 @@
+# No notification integrations configured on purpose: alerts are visible in
+# Alertmanager's own UI (localhost:9093) and via Grafana's ALERTS metric, but
+# nothing gets emailed/Slacked out. Add a receiver integration (email_configs,
+# slack_configs, ...) under 'default' below when you're ready to wire that up.
+route:
+  receiver: "default"
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: "default"

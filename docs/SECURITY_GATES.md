@@ -51,6 +51,8 @@ Local scans used Trivy 0.74.0 with the same flags as CI (`--severity HIGH,CRITIC
 
 The first v2 pipeline (`f421805`) raised warnings on both image scans: 3 CRITICAL in the embedded Tomcat and 7 HIGH in Alpine `libuuid`. Both were fixed in `bb09eb8`; see the remediation log in [SECURITY.md](../SECURITY.md#vulnerability-remediation-log).
 
+**22 Sep 2026 (local only, not yet re-validated in CI):** added Alertmanager as a sixth Compose service, plus a Prometheus rule file (`monitoring/prometheus/alerts.yml`, 8 rules) and an expanded Grafana dashboard. Verified locally: all 8 rules load with `health: ok` and sit `inactive` under normal load, and Prometheus discovers `alertmanager:9093` as an active Alertmanager target. Not yet verified that a rule actually transitions to `firing` under a real breach, and not yet run through a GitLab pipeline.
+
 Before switching Trivy image scans from advisory to blocking, confirm the full GitLab image scans complete reliably for both images over several pipelines. New CVEs are published continuously, so a previously clean image can start warning without any code change.
 
 ## Handling a Trivy Warning

@@ -2,83 +2,346 @@
   "title": "Ktebna Backend Overview",
   "uid": "ktebna-overview",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 3,
   "editable": true,
   "refresh": "10s",
   "time": { "from": "now-30m", "to": "now" },
+  "tags": ["ktebna", "backend"],
   "panels": [
+    { "id": 100, "type": "row", "title": "Golden Signals", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false },
+
     {
       "id": 1,
-      "title": "HTTP Request Rate",
+      "title": "Request Rate by Outcome",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "description": "Requests/sec, split by SUCCESS / CLIENT_ERROR / SERVER_ERROR.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\"}[1m])) by (uri, status)",
-          "legendFormat": "{{uri}} [{{status}}]",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "title": "HTTP p95 Latency",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"ktebna-backend\"}[5m])) by (le, uri))",
-          "legendFormat": "{{uri}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "title": "JVM Heap Memory Used",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "targets": [
-        {
-          "expr": "sum(jvm_memory_used_bytes{application=\"ktebna-backend\", area=\"heap\"}) by (id)",
-          "legendFormat": "{{id}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "title": "Process CPU Usage",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "targets": [
-        {
-          "expr": "process_cpu_usage{application=\"ktebna-backend\"}",
-          "legendFormat": "CPU usage",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "title": "Uptime",
-      "type": "stat",
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "targets": [
-        {
-          "expr": "process_uptime_seconds{application=\"ktebna-backend\"}",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\"}[1m])) by (outcome)",
+          "legendFormat": "{{outcome}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "s" },
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 15, "stacking": { "mode": "normal" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "SUCCESS" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "CLIENT_ERROR" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "SERVER_ERROR" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Error Rate (5xx + 4xx)",
+      "type": "stat",
+      "description": "Share of requests over the last 5m that failed client- or server-side.",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\"}[5m])) / sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "orange", "value": 1 },
+            { "color": "red", "value": 5 }
+          ] }
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "area", "colorMode": "background" }
+    },
+    {
+      "id": 3,
+      "title": "Overall p99 Latency",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"ktebna-backend\"}[5m])) by (le))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "orange", "value": 0.5 },
+            { "color": "red", "value": 1 }
+          ] }
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "area", "colorMode": "background" }
+    },
+    {
+      "id": 4,
+      "title": "Latency by Endpoint (p50 / p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"ktebna-backend\"}[5m])) by (le, uri))",
+          "legendFormat": "p95 {{uri}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=\"ktebna-backend\"}[5m])) by (le, uri))",
+          "legendFormat": "p50 {{uri}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "title": "Traffic by Endpoint",
+      "type": "bargauge",
+      "description": "Requests/sec per endpoint over the last 5m.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\"}[5m])) by (uri)",
+          "legendFormat": "{{uri}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "options": { "orientation": "horizontal", "displayMode": "gradient" }
+    },
+
+    { "id": 101, "type": "row", "title": "JVM & Process", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 }, "collapsed": false },
+
+    {
+      "id": 6,
+      "title": "JVM Heap: Used vs Max",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "sum(jvm_memory_used_bytes{application=\"ktebna-backend\", area=\"heap\"})", "legendFormat": "used", "refId": "A" },
+        { "expr": "sum(jvm_memory_max_bytes{application=\"ktebna-backend\", area=\"heap\"})", "legendFormat": "max", "refId": "B" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "max" }, "properties": [{ "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "title": "Threads",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "jvm_threads_live_threads{application=\"ktebna-backend\"}", "legendFormat": "live", "refId": "A" },
+        { "expr": "jvm_threads_daemon_threads{application=\"ktebna-backend\"}", "legendFormat": "daemon", "refId": "B" },
+        { "expr": "jvm_threads_peak_threads{application=\"ktebna-backend\"}", "legendFormat": "peak", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "title": "GC Pause Time (avg) & Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(jvm_gc_pause_seconds_sum{application=\"ktebna-backend\"}[5m])) / sum(rate(jvm_gc_pause_seconds_count{application=\"ktebna-backend\"}[5m]))",
+          "legendFormat": "avg pause time",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(jvm_gc_pause_seconds_count{application=\"ktebna-backend\"}[5m]))",
+          "legendFormat": "pauses/sec",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [
+        { "matcher": { "id": "byName", "options": "pauses/sec" }, "properties": [{ "id": "unit", "value": "ops" }] }
+      ] }
+    },
+    {
+      "id": 9,
+      "title": "CPU Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "process_cpu_usage{application=\"ktebna-backend\"}", "legendFormat": "process", "refId": "A" },
+        { "expr": "system_cpu_usage{application=\"ktebna-backend\"}", "legendFormat": "system", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] }
+    },
+
+    { "id": 102, "type": "row", "title": "Database (HikariCP)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 }, "collapsed": false },
+
+    {
+      "id": 10,
+      "title": "Connection Pool Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 35 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "hikaricp_connections_active{application=\"ktebna-backend\"}", "legendFormat": "active", "refId": "A" },
+        { "expr": "hikaricp_connections_idle{application=\"ktebna-backend\"}", "legendFormat": "idle", "refId": "B" },
+        { "expr": "hikaricp_connections_pending{application=\"ktebna-backend\"}", "legendFormat": "pending", "refId": "C" },
+        { "expr": "hikaricp_connections_max{application=\"ktebna-backend\"}", "legendFormat": "max", "refId": "D" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "stacking": { "mode": "normal", "group": "A" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "max" }, "properties": [{ "id": "custom.stacking", "value": { "mode": "none" } }, { "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "pending" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "title": "Connection Acquire Time (avg)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 12, "y": 35 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(hikaricp_connections_acquire_seconds_sum{application=\"ktebna-backend\"}[5m])) / sum(rate(hikaricp_connections_acquire_seconds_count{application=\"ktebna-backend\"}[5m]))",
+          "legendFormat": "avg acquire time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 12,
+      "title": "Connection Timeouts",
+      "type": "stat",
+      "description": "Should stay at 0. Non-zero means requests are being starved for a DB connection.",
+      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 35 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "sum(hikaricp_connections_timeout_total{application=\"ktebna-backend\"})", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "red", "value": 1 }
+        ] } },
+        "overrides": []
+      },
+      "options": { "colorMode": "background" }
+    },
+
+    { "id": 103, "type": "row", "title": "Infra, Sessions & Logs", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 }, "collapsed": false },
+
+    {
+      "id": 13,
+      "title": "Uptime",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 4, "x": 0, "y": 44 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "process_uptime_seconds{application=\"ktebna-backend\"}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 14,
+      "title": "Disk Free",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 4, "x": 4, "y": 44 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "100 * disk_free_bytes{application=\"ktebna-backend\"} / disk_total_bytes{application=\"ktebna-backend\"}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [
+          { "color": "red", "value": null },
+          { "color": "orange", "value": 10 },
+          { "color": "green", "value": 20 }
+        ] } },
         "overrides": []
       }
+    },
+    {
+      "id": 15,
+      "title": "Tomcat Active Sessions",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 44 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "tomcat_sessions_active_current_sessions{application=\"ktebna-backend\"}", "legendFormat": "active", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "id": 16,
+      "title": "Log Events by Level",
+      "type": "timeseries",
+      "description": "Rate of log lines emitted per level. Watch warn/error for spikes.",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 44 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "sum(rate(logback_events_total{application=\"ktebna-backend\"}[5m])) by (level)", "legendFormat": "{{level}}", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "error" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "warn" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "info" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] }
+        ]
+      }
+    },
+
+    { "id": 104, "type": "row", "title": "Alerts", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 52 }, "collapsed": false },
+
+    {
+      "id": 17,
+      "title": "Active Alerts",
+      "type": "stat",
+      "description": "Prometheus alert rules currently firing (see alerts.yml). 0 is healthy.",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 53 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "red", "value": 1 }
+        ] } },
+        "overrides": []
+      },
+      "options": { "colorMode": "background" }
+    },
+    {
+      "id": 18,
+      "title": "Firing Alerts",
+      "type": "table",
+      "description": "Full list of currently firing alerts with their labels.",
+      "gridPos": { "h": 6, "w": 18, "x": 6, "y": 53 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "ALERTS{alertstate=\"firing\"}", "format": "table", "instant": true, "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
     }
   ]
 }

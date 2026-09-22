@@ -1,0 +1,81 @@
+groups:
+  - name: ktebna-backend
+    rules:
+      - alert: BackendDown
+        expr: up{job="ktebna-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend target is down"
+          description: "Prometheus has not been able to scrape ktebna-backend for over 1 minute."
+
+      - alert: HighErrorRate
+        expr: >
+          100 * sum(rate(http_server_requests_seconds_count{application="ktebna-backend", outcome=~"CLIENT_ERROR|SERVER_ERROR"}[5m]))
+          / sum(rate(http_server_requests_seconds_count{application="ktebna-backend"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated HTTP error rate ({{ $value | printf \"%.1f\" }}%)"
+          description: "More than 5% of requests have been 4xx/5xx for the last 5 minutes."
+
+      - alert: CriticalErrorRate
+        expr: >
+          100 * sum(rate(http_server_requests_seconds_count{application="ktebna-backend", outcome=~"CLIENT_ERROR|SERVER_ERROR"}[5m]))
+          / sum(rate(http_server_requests_seconds_count{application="ktebna-backend"}[5m])) > 20
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical HTTP error rate ({{ $value | printf \"%.1f\" }}%)"
+          description: "More than 20% of requests have been 4xx/5xx for the last 2 minutes."
+
+      - alert: HighP99Latency
+        expr: >
+          histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application="ktebna-backend"}[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p99 latency above 1s"
+          description: "99th percentile response time has been over 1 second for 5 minutes."
+
+      - alert: DbPoolPendingConnections
+        expr: hikaricp_connections_pending{application="ktebna-backend"} > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Requests are queuing for a DB connection"
+          description: "hikaricp_connections_pending has been above 0 for 2 minutes; the connection pool may be undersized."
+
+      - alert: DbConnectionTimeouts
+        expr: increase(hikaricp_connections_timeout_total{application="ktebna-backend"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection timeouts occurring"
+          description: "At least one request failed to acquire a DB connection in the last 5 minutes."
+
+      - alert: JvmHeapNearMax
+        expr: >
+          sum(jvm_memory_used_bytes{application="ktebna-backend", area="heap"})
+          / sum(jvm_memory_max_bytes{application="ktebna-backend", area="heap"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM heap usage above 90%"
+          description: "Heap used/max ratio has stayed above 0.9 for 5 minutes; risk of OutOfMemoryError."
+
+      - alert: LowDiskSpace
+        expr: >
+          100 * disk_free_bytes{application="ktebna-backend"} / disk_total_bytes{application="ktebna-backend"} < 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk free space below 10%"
+          description: "Only {{ $value | printf \"%.1f\" }}% disk space remains on the backend's volume."

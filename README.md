@@ -84,7 +84,7 @@ Old `/account/*` URLs redirect to their new equivalents.
 | Email | External mailer microservice (`MAILER_URL`), called asynchronously |
 | Local orchestration | Docker Compose |
 | Container orchestration | Kubernetes (local cluster via Docker Desktop) |
-| Monitoring | Spring Boot Actuator + Micrometer, Prometheus, Grafana |
+| Monitoring | Spring Boot Actuator + Micrometer, Prometheus, Alertmanager, Grafana |
 | CI/CD | GitLab CI/CD, shared GitLab runners |
 | Security scanning | SonarCloud (SAST), Gitleaks (secrets), Trivy (filesystem + image vulnerabilities) |
 
@@ -182,10 +182,10 @@ flowchart TB
 │       ├── i18n.js           i18next setup (+ RTL for Arabic)
 │       └── index.css         Design tokens (light + dark)
 ├── k8s/                      Kubernetes manifests
-├── monitoring/               Prometheus scrape config, Grafana provisioning
+├── monitoring/               Prometheus scrape config + alert rules, Alertmanager config, Grafana provisioning
 ├── scripts/                  dev-backend.ps1 / .sh: start the API with .env loaded
 ├── docs/SECURITY_GATES.md    Pipeline gate policy
-├── docker-compose.yml        Full local stack (5 services)
+├── docker-compose.yml        Full local stack (6 services)
 ├── .gitlab-ci.yml            CI/CD pipeline
 └── SECURITY.md               Security posture and incident history
 ```
@@ -212,7 +212,8 @@ All ports are bound to `127.0.0.1`, so the stack is reachable only from your own
 | `frontend` | http://localhost:5173 | Nginx serving the built SPA, proxies `/api` |
 | `backend` | http://localhost:8080 | Spring Boot API |
 | `mysql` | `localhost:3307` | MySQL 8.0 (container port 3306) |
-| `prometheus` | http://localhost:9090 | Scrapes `/actuator/prometheus` |
+| `prometheus` | http://localhost:9090 | Scrapes `/actuator/prometheus`; evaluates rules in `monitoring/prometheus/alerts.yml` |
+| `alertmanager` | http://localhost:9093 | Receives firing alerts from Prometheus. No notification integration configured (visible in its UI and in Grafana only) |
 | `grafana` | http://localhost:3000 | User `admin`, password from `GRAFANA_ADMIN_PASSWORD` (applied when Grafana's volume is first created) |
 
 ### Option B: Local development (hot reload)
@@ -375,7 +376,20 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Five stages run on every push:
 
 ## Monitoring
 
-The backend exposes Micrometer metrics at `/actuator/prometheus`. In Docker Compose, Prometheus scrapes them and Grafana auto-provisions its datasource and dashboard from `monitoring/grafana/provisioning`. Monitoring is not deployed to Kubernetes (see [Known issues](#known-issues)).
+The backend exposes Micrometer metrics at `/actuator/prometheus`, including histogram buckets for `http.server.requests` (`management.metrics.distribution.percentiles-histogram`), which is what lets Grafana/Prometheus compute real percentile latencies rather than just averages.
+
+In Docker Compose, Prometheus scrapes those metrics and Grafana auto-provisions its datasource and dashboard from `monitoring/grafana/provisioning`. The dashboard (`ktebna-overview.json`) is organized into five rows:
+- **Golden Signals** — request rate by outcome, error rate %, p99 latency, latency by endpoint, traffic by endpoint
+- **JVM & Process** — heap used/max, threads, GC pause time, CPU usage
+- **Database (HikariCP)** — connection pool usage, acquire time, timeouts
+- **Infra, Sessions & Logs** — uptime, disk free, active sessions, log events by level
+- **Alerts** — count of currently firing alerts and a table of which ones
+
+### Alerting
+
+Prometheus evaluates the rules in `monitoring/prometheus/alerts.yml` (backend down, high/critical error rate, high p99 latency, DB pool exhaustion, DB connection timeouts, JVM heap near max, low disk space) and forwards firing alerts to Alertmanager (`monitoring/alertmanager/alertmanager.yml`). Alertmanager is configured with a `default` receiver that has no notification integration — firing alerts are visible in its own UI (http://localhost:9093), in Prometheus's own Alerts page (http://localhost:9090/alerts), and in the Grafana dashboard's Alerts row, but nothing is emailed or posted to Slack. Add `email_configs`/`slack_configs` etc. under that receiver to wire up real delivery.
+
+Monitoring is not deployed to Kubernetes (see [Known issues](#known-issues)).
 
 ---
 
