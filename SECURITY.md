@@ -2,7 +2,7 @@
 
 This document covers Ktebna's security gates, vulnerability remediation history, application-level security controls, and credential management practices. The per-job pipeline policy lives in **[docs/SECURITY_GATES.md](./docs/SECURITY_GATES.md)**.
 
-**Last reviewed:** 21 Sep 2026 (v2 release plus the repository hardening pass). Pipeline #2868466261 (`2a24f62`): all 9 jobs green with no advisory failures; both release images **0 HIGH / 0 CRITICAL**; full git history scanned with no real secrets found.
+**Last reviewed:** 22 Sep 2026 (input-validation fixes and the database-backed Library). Pipeline #2872104317 (`a1e79d1`): all 12 jobs green, including the blocking Gitleaks and Trivy gates, so both images were published with **no fixable HIGH / CRITICAL** findings. The previous full review is pipeline #2868466261 (`2a24f62`, 21 Sep 2026).
 
 ---
 
@@ -23,7 +23,7 @@ Automated gates run on every push through GitLab CI/CD (SonarCloud runs on `main
 
 | Gate | Tool | What it catches | Blocking? |
 |---|---|---|---|
-| Tests / lint | JUnit + Testcontainers, ESLint | Regressions in auth, authorization, privacy, rate limiting and upload validation (63 tests, 94.5% line coverage); lint errors | **Blocking** |
+| Tests / lint | JUnit + Testcontainers, ESLint | Regressions in auth, authorization, privacy, rate limiting, input limits and upload validation (76 tests, 94.6% line coverage); lint errors | **Blocking** |
 | Static Application Security Testing (SAST) | SonarCloud | Code quality issues, security hotspots, code smells | Non-blocking (`allow_failure: true`) |
 | Secret scanning | Gitleaks v8.30.1 | Credentials, tokens, keys in the checked-out files **and in every commit of the history** (`GIT_DEPTH: 0`) | **Blocking** |
 | Filesystem vulnerability scanning | Trivy FS | Known CVEs in backend (Maven, offline DB) and frontend (npm) dependencies | **Blocking** on fixable HIGH/CRITICAL |
@@ -36,6 +36,22 @@ Leaked secrets block unconditionally: a leaked secret needs immediate rotation, 
 ---
 
 ## Vulnerability remediation log
+
+### 22 Sep 2026: Input validation, logic holes and broken uploads (fixed)
+
+**Detected by:** a full code review of the app, and, for the uploads bug, by re-adding the Library books through the API against the running Compose stack.
+
+| Finding | Impact | Fix |
+|---|---|---|
+| Request DTOs had no length limits beyond the DB columns | A long message or description reached MySQL and came back as a `500` | `@Size` on every text field, matching its column; passwords capped at 72 characters (BCrypt's input limit) |
+| `size` query parameter unbounded | One request with `?size=1000000` could load a whole table | Page size clamped to 1–50, negative pages to 0 |
+| Users could message themselves | A conversation with the same user on both sides | Rejected with `400` |
+| Hidden listings could be bookmarked | Confirmed that a hidden post id exists | `404`, the same answer as a missing post |
+| No unique key on the conversation pair | Two simultaneous first messages could create duplicate conversations | Unique constraint `uk_conversation_pair`; a concurrent duplicate returns `409` |
+| Uploads stored as absolute `APP_BASE_URL` links | Every image broke when the host changed; the CSP had to allow `http://localhost:8080` | Relative `/uploads/…` paths proxied by Nginx; existing rows rewritten by `scripts/migrate-relative-upload-urls.sql`; the CSP exception removed |
+| Uploads volume still owned by root after the non-root switch (`94977d6`) | Every cover and avatar upload in Compose failed with "Failed to store file" | One-time `chown` of the existing volume (new volumes inherit the right owner from the image); `fsGroup: 10001` on the k8s backend pod |
+
+**Verification:** 13 new regression tests (76 in total) and pipeline #2872104317. In the running Compose stack, covers and avatars load through `/uploads/`, and new uploads succeed.
 
 ### 22 Sep 2026: Frontend dependencies, found while making Trivy blocking
 
@@ -124,7 +140,9 @@ A full audit of the repository, its history, Docker Compose, the Kubernetes mani
 | Browser | CSP and related security headers on every page; `server_tokens off`. |
 | Errors | Clients get generic messages; details are logged server-side. |
 | Account deletion | Deletes the user's bookmarks, bookmarks others made on their posts, messages and conversations they took part in, their posts, then the user, in one transaction (fixed in v2; it previously failed on foreign keys). |
-| Uploads | Only real JPEG/PNG/GIF/WebP files (checked by magic bytes), stored under random UUID names with an extension derived from the content. Size is capped at 10 MB by both Nginx and Spring. |
+| Input limits | Every text field is length-limited to its database column (a longer value is a `400`); page sizes are capped at 50. |
+| Uploads | Only real JPEG/PNG/GIF/WebP files (checked by magic bytes), stored under random UUID names with an extension derived from the content. Size is capped at 10 MB by both Nginx and Spring. Stored as relative `/uploads/…` paths and served same-origin through Nginx. |
+| Library links | Shared PDFs are external links: only `http(s)` URLs are accepted (no `javascript:` or `data:`), they open in a new tab with `noopener,noreferrer`, only the sharer can remove a book, and sharing is rate-limited per user. The share form asks for public-domain or publisher-provided books only. |
 | Maps | Pickup pins are optional and user-chosen; the UI tells sellers to pick a public meeting place and never a home address. Coordinates outside valid ranges are discarded server-side. |
 | Outbound calls | The mailer is called asynchronously with 10 s connect / 90 s read timeouts, so a slow or unreachable mailer can't tie up request threads or delay chat messages. |
 | Secrets in config | No secret has a default value anywhere in the repository; Compose and Spring refuse to start without them. `.env*` files (except the empty `.env.example` templates), keys, certificates, SQL dumps and uploads are git-ignored and excluded from Docker build contexts. |

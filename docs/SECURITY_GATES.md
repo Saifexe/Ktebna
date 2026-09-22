@@ -47,7 +47,14 @@ The intended production gate is:
 
 ## Validation Notes
 
-**Latest validation: 21 Sep 2026 (v2 release)**
+**Latest validation: 22 Sep 2026 (input-validation fixes and database-backed Library)**
+
+| Check | Result |
+| --- | --- |
+| GitLab pipeline #2872104317 on `main` (`a1e79d1`) | **All 12 jobs passed** in 10 min 2 s: 76 backend tests, lint, SonarCloud, Gitleaks, both Trivy FS gates, both Trivy image gates (blocking), and both images published |
+| Docker Compose stack | Rebuilt backend and frontend; uploads served through Nginx at `/uploads/`; no CSP errors in the browser; Library pages verified in the browser |
+
+**Previous validation: 21 Sep 2026 (v2 release)**
 
 | Check | Result |
 | --- | --- |
