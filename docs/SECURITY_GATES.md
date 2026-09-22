@@ -10,11 +10,14 @@ This project uses GitLab CI/CD to run automated quality and security checks befo
 | `test` | `frontend-lint` | ESLint | Checks frontend code quality | Fails on lint errors |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud | Static code analysis | Advisory, allowed to fail |
 | `security` | `gitleaks` | Gitleaks v8.30.1 | Detects secrets in the working tree and the full git history | Fails on detected secrets |
-| `security` | `trivy-fs-backend` | Trivy 0.74.0 FS | Scans backend dependencies/filesystem | Advisory, allowed to fail |
-| `build` | `build-backend` | Docker | Builds and pushes backend image | Fails on build/push errors |
-| `build` | `build-frontend` | Docker | Builds and pushes frontend image | Fails on build/push errors |
-| `scan` | `trivy-backend-image` | Trivy image | Scans backend Docker image | Advisory, allowed to fail |
-| `scan` | `trivy-frontend-image` | Trivy image | Scans frontend Docker image | Advisory, allowed to fail |
+| `security` | `trivy-fs-backend` | Trivy 0.74.0 FS | Scans backend (Maven) dependencies | Fails on fixable HIGH/CRITICAL |
+| `security` | `trivy-fs-frontend` | Trivy 0.74.0 FS | Scans frontend (npm) dependencies | Fails on fixable HIGH/CRITICAL |
+| `build` | `build-backend` | Docker | Builds backend image, saves it as an artifact (no push) | Fails on build errors |
+| `build` | `build-frontend` | Docker | Builds frontend image, saves it as an artifact (no push) | Fails on build errors |
+| `scan` | `trivy-backend-image` | Trivy image | Scans the saved backend image | Fails on fixable HIGH/CRITICAL |
+| `scan` | `trivy-frontend-image` | Trivy image | Scans the saved frontend image | Fails on fixable HIGH/CRITICAL |
+| `publish` | `publish-backend` | Docker | Pushes the scanned backend image to the registry | Runs only if its scan passed |
+| `publish` | `publish-frontend` | Docker | Pushes the scanned frontend image to the registry | Runs only if its scan passed |
 
 ## Vulnerability Severity Policy
 
@@ -23,7 +26,14 @@ Trivy scans are split into two severity levels:
 - `LOW` and `MEDIUM` findings are logged with `--exit-code 0`.
 - `HIGH` and `CRITICAL` findings return a failing command with `--exit-code 1`.
 
-At the moment, Trivy jobs are marked with `allow_failure: true`, so they report security risk without blocking the full pipeline. This keeps development moving while the security baseline is still being stabilized.
+Trivy jobs block the pipeline. Each one runs twice:
+
+- A report pass over every severity with `--exit-code 0`. It never fails and keeps LOW/MEDIUM and unfixed findings visible in the job log.
+- A gate pass with `--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`, which fails the job on any HIGH/CRITICAL finding that has a fixed version.
+
+Findings with no fix yet don't block, because upgrading can't remediate them. Blocking on them would leave the pipeline stuck with no possible action.
+
+Images are pushed to the registry only in the `publish` stage, after their own scan passed. The build stage only saves them as job artifacts, and `publish` pushes that same artifact.
 
 ## Target Enforcement Policy
 
@@ -53,7 +63,15 @@ The first v2 pipeline (`f421805`) raised warnings on both image scans: 3 CRITICA
 
 **22 Sep 2026 (local only, not yet re-validated in CI):** added Alertmanager as a sixth Compose service, plus a Prometheus rule file (`monitoring/prometheus/alerts.yml`, 8 rules) and an expanded Grafana dashboard. Verified locally: all 8 rules load with `health: ok` and sit `inactive` under normal load, and Prometheus discovers `alertmanager:9093` as an active Alertmanager target. Not yet verified that a rule actually transitions to `firing` under a real breach, and not yet run through a GitLab pipeline.
 
-Before switching Trivy image scans from advisory to blocking, confirm the full GitLab image scans complete reliably for both images over several pipelines. New CVEs are published continuously, so a previously clean image can start warning without any code change.
+**22 Sep 2026: Trivy switched from advisory to blocking.** Before the switch, the same Trivy 0.74.0 commands were run locally:
+
+- Backend dependencies: 0 HIGH/CRITICAL.
+- Frontend dependencies: 40 HIGH/CRITICAL, all fixable. These were fixed first; see the remediation log in [SECURITY.md](../SECURITY.md#vulnerability-remediation-log).
+- Both rebuilt images, scanned from saved `.tar.gz` files as the pipeline now does: 0 HIGH/CRITICAL.
+
+The first GitLab pipeline with the new stages had not run yet when this was written.
+
+New CVEs are published continuously, so a pipeline can turn red with no code change. That is intended: the fix is to upgrade the flagged component. If a finding has to be accepted temporarily, add it to a `.trivyignore` with a comment giving the reason and a review date.
 
 ## Handling a Trivy Warning
 

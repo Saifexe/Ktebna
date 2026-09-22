@@ -26,16 +26,26 @@ Automated gates run on every push through GitLab CI/CD (SonarCloud runs on `main
 | Tests / lint | JUnit + Testcontainers, ESLint | Regressions in auth, authorization, privacy, rate limiting and upload validation (62 tests, ~95% line coverage); lint errors | **Blocking** |
 | Static Application Security Testing (SAST) | SonarCloud | Code quality issues, security hotspots, code smells | Non-blocking (`allow_failure: true`) |
 | Secret scanning | Gitleaks v8.30.1 | Credentials, tokens, keys in the checked-out files **and in every commit of the history** (`GIT_DEPTH: 0`) | **Blocking** |
-| Filesystem vulnerability scanning | Trivy FS | Known CVEs in backend dependencies (offline DB) | Non-blocking; job fails on HIGH/CRITICAL and shows as a warning |
-| Container image vulnerability scanning | Trivy image | Known CVEs in the built backend and frontend images | Non-blocking; job fails on HIGH/CRITICAL and shows as a warning |
+| Filesystem vulnerability scanning | Trivy FS | Known CVEs in backend (Maven, offline DB) and frontend (npm) dependencies | **Blocking** on fixable HIGH/CRITICAL |
+| Container image vulnerability scanning | Trivy image | Known CVEs in the built backend and frontend images | **Blocking** on fixable HIGH/CRITICAL; images are pushed only after this passes |
 
-Gitleaks is intentionally the one hard-blocking *security* gate: a leaked secret is treated as requiring immediate rotation, not a warning to review later. Reviewed false positives are suppressed one by one, by fingerprint, in [`.gitleaksignore`](./.gitleaksignore). Scanner images are pinned (`gitleaks:v8.30.1`, `trivy:0.74.0`), so gate results are reproducible.
+Leaked secrets block unconditionally: a leaked secret needs immediate rotation, not a later review. Reviewed false positives are suppressed one at a time, by fingerprint, in [`.gitleaksignore`](./.gitleaksignore). Scanner images are pinned (`gitleaks:v8.30.1`, `trivy:0.74.0`), so gate results are reproducible.
 
-A Trivy job showing **"Failed" with a warning icon** means the job found HIGH/CRITICAL findings, not that the pipeline broke. It is treated as a ticket to fix promptly (see the log below), not something to ignore.
+**Trivy gate policy.** Each Trivy job prints a full report (every severity, never fails), then runs the gate with `--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`. A HIGH or CRITICAL finding with a fixed version available fails the pipeline. One with no fix yet can't be remediated by upgrading, so it stays visible in the report without blocking. Images are built and saved as job artifacts, scanned, and pushed to the registry only by the `publish` stage once their scan has passed. A vulnerable image therefore never reaches the registry.
 
 ---
 
 ## Vulnerability remediation log
+
+### 22 Sep 2026: Frontend dependencies, found while making Trivy blocking
+
+**Detected by:** a local run of Trivy 0.74.0 against `ktebna/`, before the new `trivy-fs-frontend` gate was added. The frontend's npm dependencies had never been scanned by Trivy until then.
+
+| Finding | Components | Fix |
+|---|---|---|
+| 40 HIGH/CRITICAL (1 CRITICAL), all with fixed versions | Shipped to the browser: `axios` 1.11.0 (+ `form-data`), `react-router` 7.8.1. Build-time only: `vite` 7.1.3, `rollup`, `postcss` (+ `nanoid`), `picomatch`, `tar` 7.4.3 (via `@tailwindcss/oxide`) | `npm audit fix` (no `--force`, no major-version changes; only `package-lock.json` changed). Now `axios` 1.20.0, `react-router` 7.18.4, `vite` 7.3.6, `tar` 7.5.22 |
+
+**Verification:** `npm audit` reports 0 vulnerabilities, `npm run lint` and `npm run build` pass, the Trivy FS gate on `ktebna/` returns 0, and both rebuilt images scan at **0 HIGH / 0 CRITICAL**, read from their saved `.tar.gz` files as the pipeline now does.
 
 ### 21 Sep 2026: Trivy image scans flagged the v2 release
 

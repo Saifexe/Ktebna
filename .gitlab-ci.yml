@@ -4,6 +4,7 @@ stages:
   - security
   - build
   - scan
+  - publish
 
 
 variables:
@@ -132,6 +133,10 @@ gitleaks:
 
 
 
+# Trivy policy for every scan below: the first command reports everything
+# (never fails); the second is the gate and fails the job on any HIGH/CRITICAL
+# that has a fix available. Unfixed CVEs stay visible in the report but can't
+# block, since there would be nothing to upgrade to.
 trivy-fs-backend:
   stage: security
 
@@ -140,16 +145,29 @@ trivy-fs-backend:
     entrypoint: [""]
 
   script:
-    - trivy fs --scanners vuln --offline-scan --exit-code 0 --severity LOW,MEDIUM ./backend
-    - trivy fs --scanners vuln --offline-scan --exit-code 1 --severity HIGH,CRITICAL ./backend
+    # --offline-scan: Maven Central rate-limits (429) repeated POM lookups from CI IPs.
+    - trivy fs --scanners vuln --offline-scan --exit-code 0 ./backend
+    - trivy fs --scanners vuln --offline-scan --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed ./backend
 
-  allow_failure: true
+
+trivy-fs-frontend:
+  stage: security
+
+  image:
+    name: aquasec/trivy:0.74.0
+    entrypoint: [""]
+
+  script:
+    - trivy fs --scanners vuln --exit-code 0 ./ktebna
+    - trivy fs --scanners vuln --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed ./ktebna
 
 
 
 ####################
 # BUILD STAGE
 ####################
+# Images are built and saved as job artifacts, not pushed: nothing reaches the
+# registry until the scan stage has passed (see PUBLISH STAGE).
 
 build-backend:
 
@@ -165,15 +183,17 @@ build-backend:
 
   script:
 
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-
     - docker build
       -t $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
       -t $BACKEND_IMAGE:latest
       ./backend
 
-    - docker push $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
-    - docker push $BACKEND_IMAGE:latest
+    - docker save $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA $BACKEND_IMAGE:latest | gzip > backend-image.tar.gz
+
+  artifacts:
+    paths:
+      - backend-image.tar.gz
+    expire_in: 1 day
 
 
 
@@ -193,8 +213,6 @@ build-frontend:
 
   script:
 
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-
     # The Maps key goes in as a BuildKit secret (never a --build-arg), so it
     # doesn't end up in the image history. Exported even when unset, because
     # `env=` needs the variable to exist; an empty key just hides the maps.
@@ -207,8 +225,12 @@ build-frontend:
       -t $FRONTEND_IMAGE:latest
       ./ktebna
 
-    - docker push $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
-    - docker push $FRONTEND_IMAGE:latest
+    - docker save $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA $FRONTEND_IMAGE:latest | gzip > frontend-image.tar.gz
+
+  artifacts:
+    paths:
+      - frontend-image.tar.gz
+    expire_in: 1 day
 
 
 
@@ -224,9 +246,8 @@ trivy-backend-image:
   needs:
     - build-backend
   script:
-    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 0 --severity LOW,MEDIUM $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
-    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 1 --severity HIGH,CRITICAL $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
-  allow_failure: true
+    - trivy image --input backend-image.tar.gz --exit-code 0
+    - trivy image --input backend-image.tar.gz --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed
 
 trivy-frontend-image:
   stage: scan
@@ -236,6 +257,46 @@ trivy-frontend-image:
   needs:
     - build-frontend
   script:
-    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 0 --severity LOW,MEDIUM $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
-    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --exit-code 1 --severity HIGH,CRITICAL $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
-  allow_failure: true
+    - trivy image --input frontend-image.tar.gz --exit-code 0
+    - trivy image --input frontend-image.tar.gz --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed
+
+
+
+####################
+# PUBLISH STAGE
+####################
+# Runs only when the image's own scan passed; pushes exactly the bytes scanned.
+
+publish-backend:
+  stage: publish
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  needs:
+    - build-backend
+    - job: trivy-backend-image
+      artifacts: false
+  script:
+    - docker load < backend-image.tar.gz
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - docker push $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $BACKEND_IMAGE:latest
+
+publish-frontend:
+  stage: publish
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  needs:
+    - build-frontend
+    - job: trivy-frontend-image
+      artifacts: false
+  script:
+    - docker load < frontend-image.tar.gz
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - docker push $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $FRONTEND_IMAGE:latest

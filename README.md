@@ -340,7 +340,7 @@ Coverage is written to `backend/target/site/jacoco/index.html`. In CI, GitLab sh
 
 ## CI/CD pipeline
 
-Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Five stages run on every push:
+Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
@@ -348,11 +348,16 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Five stages run on every push:
 | `test` | `frontend-lint` | `npm ci` + `npm run lint` (ESLint) | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
-| `security` | `trivy-fs-backend` | Dependency vulnerabilities (HIGH/CRITICAL flagged) | No (`allow_failure`) |
-| `build` | `build-backend` | Docker build + push (`:<short-sha>` and `:latest`) | **Yes** |
-| `build` | `build-frontend` | Docker build (runs `npm run build`) + push | **Yes** |
-| `scan` | `trivy-backend-image` | Image vulnerability scan | No (`allow_failure`) |
-| `scan` | `trivy-frontend-image` | Image vulnerability scan | No (`allow_failure`) |
+| `security` | `trivy-fs-backend` | Maven dependency vulnerabilities | **Yes**, on fixable HIGH/CRITICAL |
+| `security` | `trivy-fs-frontend` | npm dependency vulnerabilities (`package-lock.json`) | **Yes**, on fixable HIGH/CRITICAL |
+| `build` | `build-backend` | Docker build, saved as a job artifact (**not pushed**) | **Yes** |
+| `build` | `build-frontend` | Docker build (runs `npm run build`), saved as a job artifact (**not pushed**) | **Yes** |
+| `scan` | `trivy-backend-image` | Scans the saved image | **Yes**, on fixable HIGH/CRITICAL |
+| `scan` | `trivy-frontend-image` | Scans the saved image | **Yes**, on fixable HIGH/CRITICAL |
+| `publish` | `publish-backend` | Pushes the scanned image (`:<short-sha>` and `:latest`) | **Yes** |
+| `publish` | `publish-frontend` | Pushes the scanned image (`:<short-sha>` and `:latest`) | **Yes** |
+
+Images reach the registry only after their own scan passes, and what gets pushed is the exact artifact that was scanned. Each Trivy job first prints a full report (all severities, never fails), then runs the gate: HIGH/CRITICAL findings that have a fixed version fail the job. CVEs with no fix yet stay visible in the report but don't block, since there is nothing to upgrade to.
 
 **CI/CD variables** (Settings → CI/CD → Variables):
 
