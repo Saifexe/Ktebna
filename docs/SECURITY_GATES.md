@@ -6,7 +6,7 @@ This project uses GitLab CI/CD to run automated quality and security checks befo
 
 | Stage | Job | Tool | Purpose | Current behavior |
 | --- | --- | --- | --- | --- |
-| `test` | `backend-test` | Maven + Testcontainers | 62 unit and integration tests against a real MySQL 8, including security regression tests (auth, ownership, privacy, rate limits, upload validation); publishes JUnit + JaCoCo coverage | Fails on any test failure |
+| `test` | `backend-test` | Maven + Testcontainers | 63 unit and integration tests against a real MySQL 8, including security regression tests (auth, ownership, privacy, rate limits, upload validation); publishes JUnit + JaCoCo coverage | Fails on any test failure |
 | `test` | `frontend-lint` | ESLint | Checks frontend code quality | Fails on lint errors |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud | Static code analysis | Advisory, allowed to fail |
 | `security` | `gitleaks` | Gitleaks v8.30.1 | Detects secrets in the working tree and the full git history | Fails on detected secrets |
@@ -69,7 +69,7 @@ The first v2 pipeline (`f421805`) raised warnings on both image scans: 3 CRITICA
 - Frontend dependencies: 40 HIGH/CRITICAL, all fixable. These were fixed first; see the remediation log in [SECURITY.md](../SECURITY.md#vulnerability-remediation-log).
 - Both rebuilt images, scanned from saved `.tar.gz` files as the pipeline now does: 0 HIGH/CRITICAL.
 
-The first GitLab pipeline with the new stages had not run yet when this was written.
+The first GitLab pipeline with the new stages (`0c8a003`) passed: all 12 jobs green across 6 stages, including both blocking image scans and both `publish` jobs.
 
 New CVEs are published continuously, so a pipeline can turn red with no code change. That is intended: the fix is to upgrade the flagged component. If a finding has to be accepted temporarily, add it to a `.trivyignore` with a comment giving the reason and a review date.
 

@@ -2,7 +2,7 @@
   "title": "Ktebna Backend Overview",
   "uid": "ktebna-overview",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "editable": true,
   "refresh": "10s",
   "time": { "from": "now-30m", "to": "now" },
@@ -42,7 +42,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "100 * sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\"}[5m])) / sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\"}[5m]))",
+          "expr": "100 * (sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\"}[5m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{application=\"ktebna-backend\"}[5m]))",
           "refId": "A"
         }
       ],

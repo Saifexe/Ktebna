@@ -100,9 +100,9 @@ Old `/account/*` URLs redirect to their new equivalents.
 flowchart LR
     subgraph CI["GitLab CI/CD Pipeline"]
         direction TB
-        T[test] --> S[sonarcloud] --> SEC[security] --> B[build] --> SC[scan]
+        T[test] --> S[sonarcloud] --> SEC[security] --> B[build] --> SC[scan] --> P[publish]
     end
-    CI -->|pushes images| REG[(GitLab Container Registry)]
+    CI -->|pushes scanned images| REG[(GitLab Container Registry)]
     REG -->|pulled by| K8S
 
     subgraph K8S["Kubernetes namespace: ktebna"]
@@ -320,7 +320,7 @@ Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by fil
 
 ## Testing
 
-The backend has **62 automated tests** with **~95% line coverage**:
+The backend has **63 automated tests** with **94.5% line coverage**:
 
 | Layer | What it covers | How |
 |---|---|---|
@@ -344,7 +344,7 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
-| `test` | `backend-test` | 62 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
+| `test` | `backend-test` | 63 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
 | `test` | `frontend-lint` | `npm ci` + `npm run lint` (ESLint) | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
