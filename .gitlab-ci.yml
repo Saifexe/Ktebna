@@ -228,7 +228,9 @@ build-backend:
   artifacts:
     paths:
       - backend-image.tar.gz
-    expire_in: 1 day
+    # Only needed by this pipeline's scan and publish jobs (minutes), and each
+    # copy is hundreds of MB of project storage, so don't keep it for a day.
+    expire_in: 2 hours
 
 
 
@@ -269,7 +271,9 @@ build-frontend:
   artifacts:
     paths:
       - frontend-image.tar.gz
-    expire_in: 1 day
+    # Only needed by this pipeline's scan and publish jobs (minutes), and each
+    # copy is hundreds of MB of project storage, so don't keep it for a day.
+    expire_in: 2 hours
 
 
 
