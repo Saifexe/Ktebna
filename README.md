@@ -344,11 +344,11 @@ cd backend
 
 Coverage is written to `backend/target/site/jacoco/index.html`. In CI, GitLab shows the test results in the pipeline's **Tests** tab and the coverage percentage on the job; SonarCloud reads the same JaCoCo report.
 
-The frontend has **127 tests** (Vitest + React Testing Library, in a simulated browser) covering 56% of its lines:
+The frontend has **167 tests** (Vitest + React Testing Library, in a simulated browser) covering 81% of its lines:
 
-- **Logic:** deal labels, dates, map links, the API client's token handling, and a check that French and Arabic translate every English string, category and city.
-- **Components:** book cards, covers, pagination, the unread badge, the login form and the route guard.
-- **Pages, end to end against a mocked API:** browsing with search, filters and pagination; the book page (owner vs. visitor, private listings, messaging); the three-step "List a Book" flow with its validation; the inbox; and the profile (hide, delete, rename).
+- **Logic:** deal labels, listing statuses, dates, map links, the API client's token handling, session restore and login/logout, the chat service, and a check that French and Arabic translate every English string, category and city.
+- **Components:** the header (search, language menu, unread badge), book cards, covers, pagination, the saved-books shelf, the login form, the login prompt and the route guard.
+- **Pages, end to end against a mocked API:** browsing with search, filters and pagination; the book page (owner vs. visitor, private listings, messaging); the three-step "List a Book" flow with its validation; the inbox; the profile (status, hide, delete, rename); public reader profiles; and the Free Library (browse and filter, open or remove a PDF, and the share form, which only accepts http(s) links).
 
 ```bash
 cd ktebna
@@ -365,7 +365,7 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
 | `test` | `backend-test` | 86 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
-| `test` | `frontend-test` | `npm run lint` (ESLint), then 127 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
+| `test` | `frontend-test` | `npm run lint` (ESLint), then 167 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
 | `security` | `trivy-fs-backend` | Maven dependency vulnerabilities | **Yes**, on fixable HIGH/CRITICAL |
