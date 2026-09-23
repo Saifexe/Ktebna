@@ -103,6 +103,10 @@ frontend-test:
 # SONARCLOUD STAGE
 ####################
 
+# Blocking gate: sonar.qualitygate.wait makes the scanner wait for SonarCloud's
+# verdict and fail the job when the quality gate fails ("Sonar way": new code
+# needs A ratings, 80% coverage, at most 3% duplication), which stops the
+# pipeline before anything is built or published.
 sonarcloud-check:
   stage: sonarcloud
 
@@ -125,13 +129,13 @@ sonarcloud-check:
       -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
       -Dsonar.javascript.lcov.reportPaths=ktebna/coverage/lcov.info
       -Dsonar.cpd.exclusions=ktebna/src/locales/**,ktebna/src/i18n.js
+      -Dsonar.qualitygate.wait=true
+      -Dsonar.qualitygate.timeout=300
 
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
     - if: '$CI_COMMIT_BRANCH == "main"'
-
-  allow_failure: true
 
 
 

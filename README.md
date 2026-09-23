@@ -366,7 +366,7 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 |---|---|---|---|
 | `test` | `backend-test` | 86 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
 | `test` | `frontend-test` | `npm run lint` (ESLint), then 167 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
-| `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
+| `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only); waits for the quality gate verdict | **Yes**, when the quality gate fails |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
 | `security` | `trivy-fs-backend` | Maven dependency vulnerabilities | **Yes**, on fixable HIGH/CRITICAL |
 | `security` | `trivy-fs-frontend` | npm dependency vulnerabilities (`package-lock.json`) | **Yes**, on fixable HIGH/CRITICAL |

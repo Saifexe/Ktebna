@@ -8,7 +8,7 @@ This project uses GitLab CI/CD to run automated quality and security checks befo
 | --- | --- | --- | --- | --- |
 | `test` | `backend-test` | Maven + Testcontainers | 86 unit and integration tests against a real MySQL 8, including security regression tests (auth, ownership, privacy, rate limits, upload validation); publishes JUnit + JaCoCo coverage | Fails on any test failure |
 | `test` | `frontend-test` | ESLint + Vitest | Lints the frontend, then runs 167 component and page tests (login, listing, search, messaging, profile, translations); publishes JUnit results and lcov coverage for SonarCloud | Fails on lint errors or any test failure |
-| `sonarcloud` | `sonarcloud-check` | SonarCloud | Static code analysis | Advisory, allowed to fail |
+| `sonarcloud` | `sonarcloud-check` | SonarCloud | Static code analysis; waits for the quality gate verdict (new code: A ratings, 80% coverage, at most 3% duplication) | Fails when the quality gate fails |
 | `security` | `gitleaks` | Gitleaks v8.30.1 | Detects secrets in the working tree and the full git history | Fails on detected secrets |
 | `security` | `trivy-fs-backend` | Trivy 0.74.0 FS | Scans backend (Maven) dependencies | Fails on fixable HIGH/CRITICAL |
 | `security` | `trivy-fs-frontend` | Trivy 0.74.0 FS | Scans frontend (npm) dependencies | Fails on fixable HIGH/CRITICAL |

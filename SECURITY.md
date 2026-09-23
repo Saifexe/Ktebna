@@ -24,7 +24,7 @@ Automated gates run on every push through GitLab CI/CD (SonarCloud runs on `main
 | Gate | Tool | What it catches | Blocking? |
 |---|---|---|---|
 | Tests / lint | JUnit + Testcontainers, Vitest, ESLint | Backend regressions in auth, authorization, privacy, rate limiting, input limits and upload validation (86 tests, 94.9% line coverage); frontend regressions in login, listing, messaging and access to private pages (167 tests, 81% line coverage); lint errors | **Blocking** |
-| Static Application Security Testing (SAST) | SonarCloud | Code quality issues, security hotspots, code smells | Non-blocking (`allow_failure: true`) |
+| Static Application Security Testing (SAST) | SonarCloud | Security, reliability and maintainability issues, test coverage and duplication in new code | **Blocking** when the "Sonar way" quality gate fails (`sonar.qualitygate.wait=true`) |
 | Secret scanning | Gitleaks v8.30.1 | Credentials, tokens, keys in the checked-out files **and in every commit of the history** (`GIT_DEPTH: 0`) | **Blocking** |
 | Filesystem vulnerability scanning | Trivy FS | Known CVEs in backend (Maven, offline DB) and frontend (npm) dependencies | **Blocking** on fixable HIGH/CRITICAL |
 | Container image vulnerability scanning | Trivy image | Known CVEs in the built backend and frontend images | **Blocking** on fixable HIGH/CRITICAL; images are pushed only after this passes |
