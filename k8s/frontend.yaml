@@ -22,7 +22,7 @@ spec:
           # GitLab registry (see README Known Issues). Build with Compose, then run
           # scripts/k8s-load-images.sh <tag>. `Never` makes a missing image fail
           # loudly instead of falling back to the broken registry pull.
-          image: ktebna/frontend:a1e79d1
+          image: ktebna/frontend:d004dd5
           imagePullPolicy: Never
           # The image runs nginx as a non-root user, so it listens on 8080 (ports
           # below 1024 need root). nginx also proxies /api and /uploads to the

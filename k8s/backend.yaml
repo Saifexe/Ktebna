@@ -41,7 +41,7 @@ spec:
           # GitLab registry (see README Known Issues). Build with Compose, then run
           # scripts/k8s-load-images.sh <tag>. `Never` makes a missing image fail
           # loudly instead of falling back to the broken registry pull.
-          image: ktebna/backend:a1e79d1
+          image: ktebna/backend:d004dd5
           imagePullPolicy: Never
           ports:
             - containerPort: 8080
