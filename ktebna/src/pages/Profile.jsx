@@ -25,6 +25,7 @@ import { useSaved } from "../hooks/useSaved";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 import Avatar from "../ui/Avatar";
+import Stat from "../ui/Stat";
 import Spinner from "../ui/Spinner";
 import EmptyState from "../ui/EmptyState";
 import BookCover from "../components/BookCover";
@@ -33,13 +34,6 @@ import { MAX_SAVED, STATUSES, dealLabel, postStatus, statusLabel, timeAgo } from
 import UpdateProfilePictureModal from "../account/modal/UpdateProfilePictureModal";
 import DeleteUserModal from "../account/modal/DeleteUserModal";
 import DeletePostModal from "../account/modal/DeletePostModal";
-
-const Stat = ({ n, label }) => (
-  <div>
-    <b className="text-primary">{n}</b>
-    <p className="text-[10px] text-muted-foreground">{label}</p>
-  </div>
-);
 
 const Metric = ({ icon, n, label }) => {
   const Icon = icon;

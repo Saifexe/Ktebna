@@ -14,6 +14,7 @@ import Saved from "./pages/Saved.jsx";
 import Sell from "./pages/Sell.jsx";
 import Messages from "./pages/Messages.jsx";
 import Profile from "./pages/Profile.jsx";
+import PublicProfile from "./pages/PublicProfile.jsx";
 import Contact from "./pages/Contact.jsx";
 import About from "./pages/About.jsx";
 import LoginPage from "./auth/LoginFinal.jsx";
@@ -35,6 +36,7 @@ function App() {
                   <Route path="/book/:id" element={<BookDetail />} />
                   <Route path="/books" element={<Library />} />
                   <Route path="/books/:id" element={<LibraryBook />} />
+                  <Route path="/user/:id" element={<PublicProfile />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />

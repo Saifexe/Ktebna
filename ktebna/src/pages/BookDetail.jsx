@@ -8,6 +8,7 @@ import {
   BookX,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Clock,
   Edit3,
   ExternalLink,
@@ -247,9 +248,13 @@ const BookDetail = () => {
             )}
           </div>
 
-          <div className="mt-5 flex items-center gap-4 rounded-lg border p-4">
+          <Link
+            to={`/user/${post.user?.id}`}
+            aria-label={`${t("publicProfile.view")}: ${post.user?.name}`}
+            className="mt-5 flex items-center gap-4 rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/60"
+          >
             <Avatar src={post.user?.profilePicture} name={post.user?.name} className="size-12" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">{t("book.listedBy")}</p>
               <b className="block truncate">{post.user?.name}</b>
               <p className="text-xs text-muted-foreground">
@@ -262,7 +267,8 @@ const BookDetail = () => {
                 {timeAgo(post.createdAt, i18n.language)}
               </p>
             </div>
-          </div>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground rtl:rotate-180" />
+          </Link>
         </div>
       </div>
 

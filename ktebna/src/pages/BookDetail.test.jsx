@@ -83,6 +83,11 @@ describe("BookDetail", () => {
     expect(screen.getByTestId("url")).toHaveTextContent("/messages?with=3&name=Saif&book=Dune");
   });
 
+  it("links the seller card to their public profile", async () => {
+    open(post);
+    expect(await screen.findByRole("link", { name: "View profile: Saif" })).toHaveAttribute("href", "/user/3");
+  });
+
   it("lets the owner edit instead of messaging themselves", async () => {
     open(post, { user: seller });
     expect(await screen.findByText("This is your listing.")).toBeInTheDocument();

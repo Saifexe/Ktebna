@@ -23,7 +23,7 @@ Automated gates run on every push through GitLab CI/CD (SonarCloud runs on `main
 
 | Gate | Tool | What it catches | Blocking? |
 |---|---|---|---|
-| Tests / lint | JUnit + Testcontainers, Vitest, ESLint | Backend regressions in auth, authorization, privacy, rate limiting, input limits and upload validation (82 tests, 94.7% line coverage); frontend regressions in login, listing, messaging and access to private pages (117 tests, 56% line coverage); lint errors | **Blocking** |
+| Tests / lint | JUnit + Testcontainers, Vitest, ESLint | Backend regressions in auth, authorization, privacy, rate limiting, input limits and upload validation (86 tests, 94.9% line coverage); frontend regressions in login, listing, messaging and access to private pages (127 tests, 56% line coverage); lint errors | **Blocking** |
 | Static Application Security Testing (SAST) | SonarCloud | Code quality issues, security hotspots, code smells | Non-blocking (`allow_failure: true`) |
 | Secret scanning | Gitleaks v8.30.1 | Credentials, tokens, keys in the checked-out files **and in every commit of the history** (`GIT_DEPTH: 0`) | **Blocking** |
 | Filesystem vulnerability scanning | Trivy FS | Known CVEs in backend (Maven, offline DB) and frontend (npm) dependencies | **Blocking** on fixable HIGH/CRITICAL |
@@ -136,7 +136,7 @@ A full audit of the repository, its history, Docker Compose, the Kubernetes mani
 |---|---|
 | Authentication | Email + password (BCrypt hashes); stateless JWT (HMAC-SHA, HS256 or stronger depending on key length; 7-day lifetime) sent as `Authorization: Bearer`. The signing secret comes from `JWT_SECRET` (at least 32 characters). |
 | Authorization | Ownership checks on every listing mutation (edit, visibility, delete → `403` otherwise) and on reading hidden listings (`404`); participant checks on every conversation, message, and mark-read call. |
-| Privacy | Email addresses are only ever returned to their owner. |
+| Privacy | Email addresses are only ever returned to their owner. The public profile endpoints (`/api/users/{id}/profile` and `/posts`), the only `/api/users` routes open to visitors, return a fixed set of public fields and exclude hidden listings; tests check that no email ever appears in them. |
 | Abuse limits | Rate limits at Nginx and in the backend (see finding 8 above); `429` with `Retry-After`. |
 | Browser | CSP and related security headers on every page; `server_tokens off`. |
 | Errors | Clients get generic messages; details are logged server-side. |

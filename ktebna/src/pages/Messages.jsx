@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
@@ -234,9 +234,13 @@ const Messages = () => {
               >
                 <ChevronLeft className="rtl:rotate-180" />
               </Button>
-              <Avatar src={other.profilePicture} name={other.name} />
+              <Link to={`/user/${other.id}`} aria-label={`${t("publicProfile.view")}: ${other.name}`}>
+                <Avatar src={other.profilePicture} name={other.name} />
+              </Link>
               <div className="min-w-0">
-                <b className="block truncate">{other.name}</b>
+                <Link to={`/user/${other.id}`} className="block truncate font-bold hover:text-primary">
+                  {other.name}
+                </Link>
                 {topic && (
                   <p className="flex items-center gap-1 truncate text-xs text-trust">
                     <BookOpen className="size-3 shrink-0" /> {t("messagesPage.about")} {topic}

@@ -121,6 +121,11 @@ describe("Messages", () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Message too long"));
   });
 
+  it("links the chat header to the other reader's profile", async () => {
+    open("/messages?with=5");
+    expect(await screen.findByRole("link", { name: "View profile: Amira" })).toHaveAttribute("href", "/user/5");
+  });
+
   it("goes back to the list on mobile", async () => {
     open("/messages?with=5");
     await userEvent.click(await screen.findByRole("button", { name: "Back to conversations" }));

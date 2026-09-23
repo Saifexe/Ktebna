@@ -66,6 +66,7 @@ Old `/account/*` URLs redirect to their new equivalents.
 
 **Account**
 - Email/password sign-up and login (JWT), profile photo, name editing, account deletion.
+- Public reader profiles (`/user/:id`), open to visitors: photo, name, "member since", the books they currently offer, and how many deals they've completed, with a button to message them. Reached from the seller card on a book page and from a chat's header. Emails, hidden listings, saved books and conversations never appear there.
 
 **Everywhere**
 - English, French, and Arabic, with full right-to-left layout in Arabic.
@@ -308,6 +309,8 @@ All endpoints are under `/api`. **Auth** means a valid `Authorization: Bearer <j
 | `GET` | `/conversations/{id}/messages` | ✓ participant | Messages, oldest first |
 | `POST` | `/messages` | ✓ | Body `{ otherUserId, bookName?, messageContent }`; creates the conversation if needed |
 | `PUT` | `/account/name` | ✓ | Rename |
+| `GET` | `/users/{id}/profile` | – | Public profile: name, photo, member since, books on offer, completed deals (never the email) |
+| `GET` | `/users/{id}/posts` | – | That reader's public, unsold listings, paginated |
 | `POST` | `/account/profile-picture` | ✓ | Upload avatar (multipart `file`) |
 | `GET` | `/library` | – | Free library. Query: `search`, `language` (`en` · `fr` · `ar`), `category`, `page`, `size` |
 | `GET` | `/library/{id}` | – | One library book |
@@ -325,7 +328,7 @@ Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by fil
 
 ## Testing
 
-The backend has **82 automated tests** with **94.7% line coverage**:
+The backend has **86 automated tests** with **94.9% line coverage**:
 
 | Layer | What it covers | How |
 |---|---|---|
@@ -341,7 +344,7 @@ cd backend
 
 Coverage is written to `backend/target/site/jacoco/index.html`. In CI, GitLab shows the test results in the pipeline's **Tests** tab and the coverage percentage on the job; SonarCloud reads the same JaCoCo report.
 
-The frontend has **117 tests** (Vitest + React Testing Library, in a simulated browser) covering 56% of its lines:
+The frontend has **127 tests** (Vitest + React Testing Library, in a simulated browser) covering 56% of its lines:
 
 - **Logic:** deal labels, dates, map links, the API client's token handling, and a check that French and Arabic translate every English string, category and city.
 - **Components:** book cards, covers, pagination, the unread badge, the login form and the route guard.
@@ -361,8 +364,8 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
-| `test` | `backend-test` | 82 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
-| `test` | `frontend-test` | `npm run lint` (ESLint), then 117 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
+| `test` | `backend-test` | 86 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
+| `test` | `frontend-test` | `npm run lint` (ESLint), then 127 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
 | `security` | `trivy-fs-backend` | Maven dependency vulnerabilities | **Yes**, on fixable HIGH/CRITICAL |

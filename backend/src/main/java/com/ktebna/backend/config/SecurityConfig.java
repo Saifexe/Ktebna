@@ -57,6 +57,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/library/**").permitAll()
+                        // Public reader profiles; other /api/users routes stay private.
+                        .requestMatchers(HttpMethod.GET, "/api/users/*/profile", "/api/users/*/posts").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated()

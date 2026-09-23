@@ -1,7 +1,11 @@
 package com.ktebna.backend.controller;
 
+import com.ktebna.backend.dto.PostResponse;
+import com.ktebna.backend.dto.PublicProfile;
 import com.ktebna.backend.dto.UpdateNameRequest;
 import com.ktebna.backend.dto.UserDto;
+import com.ktebna.backend.entity.Post;
+import com.ktebna.backend.entity.PostStatus;
 import com.ktebna.backend.entity.User;
 import com.ktebna.backend.exception.ApiException;
 import com.ktebna.backend.repository.ConversationRepository;
@@ -13,11 +17,14 @@ import com.ktebna.backend.repository.UserRepository;
 import com.ktebna.backend.service.FileStorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -39,6 +46,33 @@ public class UserController {
         // Email is only returned to the account owner.
         boolean self = currentUser != null && currentUser.getId().equals(id);
         return new UserDto(user.getId(), user.getName(), self ? user.getEmail() : null, user.getProfilePicture());
+    }
+
+    // Public profile page: open to visitors (see SecurityConfig), never the email.
+    @GetMapping("/users/{id}/profile")
+    public PublicProfile getPublicProfile(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
+        long active = postRepository.findPublicByOwner(id, Paging.of(0, 1)).getTotalElements();
+        long completed = postRepository.countByUserIdAndStatus(id, PostStatus.SOLD);
+        return new PublicProfile(user.getId(), user.getName(), user.getProfilePicture(),
+                user.getCreatedAt(), active, completed);
+    }
+
+    // The books a reader currently offers: public and not yet sold.
+    @GetMapping("/users/{id}/posts")
+    public Map<String, Object> getPublicPosts(@PathVariable Long id,
+                                              @RequestParam(defaultValue = "0") int page,
+                                              @RequestParam(defaultValue = "12") int size) {
+        if (!userRepository.existsById(id)) {
+            throw new ApiException("User not found", HttpStatus.NOT_FOUND);
+        }
+        Page<Post> result = postRepository.findPublicByOwner(id, Paging.of(page, size));
+        return Map.of(
+                "data", result.getContent().stream().map(PostResponse::from).toList(),
+                "count", result.getTotalElements(),
+                "totalPages", result.getTotalPages()
+        );
     }
 
     @PutMapping("/account/name")

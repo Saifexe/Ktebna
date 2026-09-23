@@ -1,6 +1,7 @@
 package com.ktebna.backend.repository;
 
 import com.ktebna.backend.entity.Post;
+import com.ktebna.backend.entity.PostStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,6 +12,13 @@ import org.springframework.data.repository.query.Param;
 public interface PostRepository extends JpaRepository<Post, Long> {
 
     Page<Post> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+
+    // A reader's public profile: what the catalog would show of them.
+    @Query("select p from Post p where p.user.id = :userId and p.isPublic = true " +
+            "and p.status <> com.ktebna.backend.entity.PostStatus.SOLD order by p.createdAt desc")
+    Page<Post> findPublicByOwner(@Param("userId") Long userId, Pageable pageable);
+
+    long countByUserIdAndStatus(Long userId, PostStatus status);
 
     @Modifying
     @Query("delete from Post p where p.user.id = :userId")
