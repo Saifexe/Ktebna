@@ -4,7 +4,9 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# No install scripts: a compromised dependency can't run code in the build.
+# The build needs none (Vite, Tailwind and esbuild ship prebuilt binaries).
+RUN npm ci --ignore-scripts
 COPY . .
 
 # Non-secret build settings, inlined into the bundle by Vite.
