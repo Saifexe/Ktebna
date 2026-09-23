@@ -28,8 +28,12 @@ const open = (initial = [dune, cairo]) => {
       "/api/saved-posts/ids": [1, 7],
     }),
   );
-  apiClient.patch.mockImplementation(async (url, { isPublic }) => {
-    posts = posts.map((p) => (url === `/api/posts/${p.id}/visibility` ? { ...p, isPublic } : p));
+  apiClient.patch.mockImplementation(async (url, body) => {
+    posts = posts.map((p) =>
+      url === `/api/posts/${p.id}/visibility` ? { ...p, isPublic: body.isPublic }
+        : url === `/api/posts/${p.id}/status` ? { ...p, status: body.status }
+          : p,
+    );
   });
   apiClient.delete.mockImplementation(async (url) => {
     posts = posts.filter((p) => url !== `/api/posts/${p.id}`);
@@ -90,6 +94,27 @@ describe("Profile", () => {
 
     expect(apiClient.delete).toHaveBeenCalledWith("/api/posts/1");
     await waitFor(() => expect(screen.queryByText("Dune")).not.toBeInTheDocument());
+  });
+
+  it("marks a listing reserved, then sold, from its status menu", async () => {
+    open();
+    await screen.findByText("Dune");
+    const menu = within(listing("Dune")).getByRole("combobox", { name: "Listing status" });
+    expect(menu).toHaveValue("AVAILABLE");
+
+    await userEvent.selectOptions(menu, "RESERVED");
+    expect(apiClient.patch).toHaveBeenCalledWith("/api/posts/1/status", { status: "RESERVED" });
+    expect(within(listing("Dune")).getByText("Reserved", { selector: "span" })).toBeInTheDocument();
+
+    await userEvent.selectOptions(menu, "SOLD");
+    await waitFor(() => expect(within(listing("Dune")).getByText("Sold", { selector: "span" })).toBeInTheDocument());
+  });
+
+  it("words the menu by deal type", async () => {
+    open();
+    await screen.findByText("The Cairo Trilogy");
+    const menu = within(listing("The Cairo Trilogy")).getByRole("combobox", { name: "Listing status" });
+    expect(within(menu).getByRole("option", { name: "Given away" })).toHaveValue("SOLD");
   });
 
   it("links each listing to its edit page", async () => {

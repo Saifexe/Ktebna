@@ -54,6 +54,7 @@ Old `/account/*` URLs redirect to their new equivalents.
 - Three-step "List a Book" flow: photo and details, then condition and deal type (Direct Sale / Book Swap / Free Giving), then pickup city, optional map pin, and visibility. It shows a live preview card.
 - Book page with condition badge, deal box, seller card, description, pickup details, map, and an "Open in Google Maps" link.
 - Owners can edit, hide/show, and delete their listings from their profile.
+- Each listing has a status the owner sets from their profile: **Available**, **Reserved** (a deal is being arranged; buyers can still ask to be next in line) or **Sold**, worded "Swapped" or "Given away" for swaps and gifts. Sold books leave the catalog but stay reachable by link, in the owner's profile and in readers' saved books, and their page no longer offers to message the seller.
 
 **Saved books**
 - Heart any book to add it to your shortlist (up to 6 at a time).
@@ -295,6 +296,7 @@ All endpoints are under `/api`. **Auth** means a valid `Authorization: Bearer <j
 | `POST` | `/posts` | ✓ | Create listing (multipart, see fields below) |
 | `PUT` | `/posts/{id}` | ✓ owner | Update listing (multipart) |
 | `PATCH` | `/posts/{id}/visibility` | ✓ owner | Body `{ "isPublic": true \| false }` |
+| `PATCH` | `/posts/{id}/status` | ✓ owner | Body `{ "status": "AVAILABLE" \| "RESERVED" \| "SOLD" }`; `SOLD` removes the listing from the feed |
 | `DELETE` | `/posts/{id}` | ✓ owner | Delete listing (also removes others' bookmarks of it) |
 | `GET` | `/saved-posts` | ✓ | Your saved listings |
 | `GET` | `/saved-posts/ids` | ✓ | Ids of your saved listings |
@@ -323,7 +325,7 @@ Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by fil
 
 ## Testing
 
-The backend has **76 automated tests** with **94.6% line coverage**:
+The backend has **82 automated tests** with **94.7% line coverage**:
 
 | Layer | What it covers | How |
 |---|---|---|
@@ -339,7 +341,7 @@ cd backend
 
 Coverage is written to `backend/target/site/jacoco/index.html`. In CI, GitLab shows the test results in the pipeline's **Tests** tab and the coverage percentage on the job; SonarCloud reads the same JaCoCo report.
 
-The frontend has **107 tests** (Vitest + React Testing Library, in a simulated browser) covering 56% of its lines:
+The frontend has **117 tests** (Vitest + React Testing Library, in a simulated browser) covering 56% of its lines:
 
 - **Logic:** deal labels, dates, map links, the API client's token handling, and a check that French and Arabic translate every English string, category and city.
 - **Components:** book cards, covers, pagination, the unread badge, the login form and the route guard.
@@ -359,8 +361,8 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
-| `test` | `backend-test` | 76 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
-| `test` | `frontend-test` | `npm run lint` (ESLint), then 107 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
+| `test` | `backend-test` | 82 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
+| `test` | `frontend-test` | `npm run lint` (ESLint), then 117 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
 | `security` | `trivy-fs-backend` | Maven dependency vulnerabilities | **Yes**, on fixable HIGH/CRITICAL |

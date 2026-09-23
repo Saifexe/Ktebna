@@ -49,6 +49,22 @@ describe("BookCard", () => {
     expect(screen.getByText("Saif")).toBeInTheDocument();
   });
 
+  it("shows a reserved badge in place of the condition", () => {
+    renderCard({ post: { ...post, status: "RESERVED" } });
+    expect(screen.getByText("Reserved")).toBeInTheDocument();
+    expect(screen.queryByText("Like New")).not.toBeInTheDocument();
+  });
+
+  it("fades a finished deal and says how it ended", () => {
+    render(
+      <MemoryRouter>
+        <BookCard post={{ ...post, status: "SOLD", bookDealType: "exchange" }} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Swapped")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Dune" })).toHaveClass("grayscale");
+  });
+
   it("hides the heart when saving isn't available", () => {
     renderCard();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();

@@ -3,16 +3,20 @@ import { Heart, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import Badge from "../ui/Badge";
 import BookCover from "./BookCover";
-import { conditionTone, dealLabel, dealTone, normalizeDealType } from "../lib/listing";
+import { conditionTone, dealLabel, dealTone, normalizeDealType, postStatus, statusLabel } from "../lib/listing";
 
 // Catalog tile from the Lovable redesign: cover, status badge, serif title,
 // author, and the deal line in the primary colour.
 const BookCard = ({ post, saved, onToggleSave }) => {
   const { t } = useTranslation();
   const type = normalizeDealType(post.bookDealType);
-  // Condition wins over deal type; old listings without either get no badge.
+  const status = postStatus(post);
+  // A reserved or sold status wins, then condition, then deal type; old
+  // listings without any of them get no badge.
   let badge = null;
-  if (post.bookCondition) {
+  if (status !== "AVAILABLE") {
+    badge = { tone: status === "SOLD" ? "sold" : "reserved", label: statusLabel(post, t) };
+  } else if (post.bookCondition) {
     badge = { tone: conditionTone(post.bookCondition), label: t(`conditions.${post.bookCondition}`) };
   } else if (type) {
     badge = { tone: dealTone(type), label: t(`deal.${type}`) };
@@ -25,7 +29,9 @@ const BookCard = ({ post, saved, onToggleSave }) => {
           <BookCover
             src={post.bookImage}
             alt={post.bookName}
-            className="size-full transition duration-500 group-hover:scale-105"
+            className={`size-full transition duration-500 group-hover:scale-105 ${
+              status === "SOLD" ? "opacity-60 grayscale" : ""
+            }`}
           />
           {badge && (
             <Badge tone={badge.tone} className="absolute start-2 top-2 shadow-sm">

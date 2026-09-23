@@ -53,6 +53,14 @@ const en = {
     exchange: "Book Swap",
     donate: "Free Giving",
   },
+  status: {
+    available: "Available",
+    reserved: "Reserved",
+    sold: { sell: "Sold", exchange: "Swapped", donate: "Given away" },
+    reservedNote: "Reserved: the seller is arranging this deal with another reader. You can still message them to be next in line.",
+    soldNote: "This book has found a new reader and is no longer available.",
+    change: "Listing status",
+  },
   conditions: {
     likeNew: "Like New",
     gentlyRead: "Gently Read",
@@ -311,6 +319,14 @@ const fr = {
     exchange: "Échange",
     donate: "Don",
   },
+  status: {
+    available: "Disponible",
+    reserved: "Réservé",
+    sold: { sell: "Vendu", exchange: "Échangé", donate: "Donné" },
+    reservedNote: "Réservé : le vendeur organise cet échange avec un autre lecteur. Vous pouvez quand même lui écrire pour être le suivant.",
+    soldNote: "Ce livre a trouvé un nouveau lecteur et n’est plus disponible.",
+    change: "Statut de l’annonce",
+  },
   conditions: {
     likeNew: "Comme neuf",
     gentlyRead: "Peu lu",
@@ -568,6 +584,14 @@ const ar = {
     sell: "بيع مباشر",
     exchange: "تبادل كتب",
     donate: "إهداء مجاني",
+  },
+  status: {
+    available: "متاح",
+    reserved: "محجوز",
+    sold: { sell: "تم البيع", exchange: "تم التبادل", donate: "تم الإهداء" },
+    reservedNote: "محجوز: البائع يرتّب هذه الصفقة مع قارئ آخر. يمكنك مراسلته لتكون التالي في الدور.",
+    soldNote: "وجد هذا الكتاب قارئاً جديداً ولم يعد متاحاً.",
+    change: "حالة الإعلان",
   },
   conditions: {
     likeNew: "كالجديد",

@@ -7,6 +7,22 @@ export const CONDITIONS = ["likeNew", "gentlyRead", "wellLoved", "collectors"];
 
 export const MAX_SAVED = 6;
 
+// Where the deal stands; only the owner changes it (PATCH /api/posts/:id/status).
+export const STATUSES = ["AVAILABLE", "RESERVED", "SOLD"];
+
+// Older posts predate the status field.
+export const postStatus = (post) => post?.status || "AVAILABLE";
+
+// "Sold" reads by deal type: a finished swap is "Swapped", a gift "Given away".
+export const statusLabel = (post, t, status = postStatus(post)) => {
+  if (status === "RESERVED") return t("status.reserved");
+  if (status === "SOLD") {
+    const type = normalizeDealType(post.bookDealType);
+    return t(`status.sold.${["exchange", "donate"].includes(type) ? type : "sell"}`);
+  }
+  return t("status.available");
+};
+
 // Swaps and gifts read as community gestures, so they carry the "trust" green;
 // a straight sale uses the warm accent (same rule as the Lovable cards).
 export const dealTone = (dealType) =>

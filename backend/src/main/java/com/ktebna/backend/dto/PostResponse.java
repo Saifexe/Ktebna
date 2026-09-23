@@ -2,6 +2,7 @@ package com.ktebna.backend.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ktebna.backend.entity.Post;
+import com.ktebna.backend.entity.PostStatus;
 import com.ktebna.backend.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -29,6 +30,7 @@ public class PostResponse {
     // Without this, Lombok's isPublic() getter makes Jackson emit "public".
     @JsonProperty("isPublic")
     private boolean isPublic;
+    private PostStatus status;
     private LocalDateTime createdAt;
     private UserDto user;
 
@@ -41,7 +43,7 @@ public class PostResponse {
                 post.getBookDeal(), post.getBookDealType(), post.getBookImage(), post.getBookLocation(),
                 post.getBookCondition(), post.getBookDescription(),
                 post.getPickupLat(), post.getPickupLng(), post.getPickupSpot(),
-                post.isPublic(), post.getCreatedAt(), userDto
+                post.isPublic(), post.getStatus(), post.getCreatedAt(), userDto
         );
     }
 }

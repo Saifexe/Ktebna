@@ -6,7 +6,9 @@ import { toast } from "react-toastify";
 import {
   ArrowLeftRight,
   BookX,
+  CheckCircle2,
   ChevronDown,
+  Clock,
   Edit3,
   ExternalLink,
   EyeOff,
@@ -28,7 +30,16 @@ import EmptyState from "../ui/EmptyState";
 import BookCover from "../components/BookCover";
 import PickupMap from "../components/maps/PickupMap";
 import { googleMapsLink } from "../lib/maps";
-import { chatLink, conditionTone, dealLabel, formatDate, normalizeDealType, timeAgo } from "../lib/listing";
+import {
+  chatLink,
+  conditionTone,
+  dealLabel,
+  formatDate,
+  normalizeDealType,
+  postStatus,
+  statusLabel,
+  timeAgo,
+} from "../lib/listing";
 
 const Accordion = ({ id, title, open, onToggle, children }) => (
   <div className="border-b py-4">
@@ -76,6 +87,7 @@ const BookDetail = () => {
   }
 
   const type = normalizeDealType(post.bookDealType);
+  const status = postStatus(post);
   const saved = isSaved(post.id);
   const city = post.bookLocation ? t(`cities.${post.bookLocation}`, post.bookLocation) : "";
   const conditionLabel = post.bookCondition
@@ -145,6 +157,9 @@ const BookDetail = () => {
               <Badge>{t(`categories.${post.bookCategory}`, post.bookCategory)}</Badge>
             )}
             {type && <Badge>{t(`deal.${type}`)}</Badge>}
+            {status !== "AVAILABLE" && (
+              <Badge tone={status === "SOLD" ? "sold" : "reserved"}>{statusLabel(post, t)}</Badge>
+            )}
           </div>
           <h1 className="mt-3 font-display text-4xl font-bold leading-tight">{post.bookName}</h1>
           {post.bookAuthor && (
@@ -179,6 +194,17 @@ const BookDetail = () => {
               </div>
             )}
 
+            {!isOwner && status === "RESERVED" && (
+              <p className="my-5 flex gap-2 rounded-md bg-amber-100 p-4 text-sm text-amber-900 dark:bg-amber-900/60 dark:text-amber-100">
+                <Clock className="size-4 shrink-0" /> {t("status.reservedNote")}
+              </p>
+            )}
+            {!isOwner && status === "SOLD" && (
+              <p className="my-5 flex gap-2 rounded-md bg-muted p-4 text-sm text-muted-foreground">
+                <CheckCircle2 className="size-4 shrink-0" /> {t("status.soldNote")}
+              </p>
+            )}
+
             {isOwner ? (
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <p className="text-sm text-muted-foreground">{t("book.yourListing")}</p>
@@ -187,13 +213,24 @@ const BookDetail = () => {
                 </Button>
               </div>
             ) : (
-              <div className="mt-5 grid grid-cols-[1fr_auto_auto] gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
-                <Button onClick={message}>
-                  <MessageCircle /> {t("book.messageSeller")}
-                </Button>
-                <Button variant="outline" onClick={message} className="hidden sm:inline-flex">
-                  {t("book.makeOffer")}
-                </Button>
+              <div
+                className={`mt-5 grid gap-2 ${
+                  status === "SOLD"
+                    ? "grid-cols-[auto_auto] justify-end"
+                    : "grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto]"
+                }`}
+              >
+                {/* A finished deal has no one left to message about it. */}
+                {status !== "SOLD" && (
+                  <>
+                    <Button onClick={message}>
+                      <MessageCircle /> {t("book.messageSeller")}
+                    </Button>
+                    <Button variant="outline" onClick={message} className="hidden sm:inline-flex">
+                      {t("book.makeOffer")}
+                    </Button>
+                  </>
+                )}
                 <Button
                   variant="outline"
                   size="icon"

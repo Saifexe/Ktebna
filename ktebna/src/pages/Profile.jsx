@@ -29,7 +29,7 @@ import Spinner from "../ui/Spinner";
 import EmptyState from "../ui/EmptyState";
 import BookCover from "../components/BookCover";
 import SavedGrid from "../components/SavedGrid";
-import { MAX_SAVED, dealLabel, timeAgo } from "../lib/listing";
+import { MAX_SAVED, STATUSES, dealLabel, postStatus, statusLabel, timeAgo } from "../lib/listing";
 import UpdateProfilePictureModal from "../account/modal/UpdateProfilePictureModal";
 import DeleteUserModal from "../account/modal/DeleteUserModal";
 import DeletePostModal from "../account/modal/DeletePostModal";
@@ -120,6 +120,11 @@ const Profile = () => {
     ...optimistic((list, { id, isPublic }) => list.map((p) => (p.id === id ? { ...p, isPublic } : p))),
   });
 
+  const setStatus = useMutation({
+    mutationFn: ({ id, status }) => apiClient.patch(`/api/posts/${id}/status`, { status }),
+    ...optimistic((list, { id, status }) => list.map((p) => (p.id === id ? { ...p, status } : p))),
+  });
+
   const remove = useMutation({
     mutationFn: (post) => apiClient.delete(`/api/posts/${post.id}`),
     ...optimistic((list, post) => list.filter((p) => p.id !== post.id)),
@@ -160,9 +165,16 @@ const Profile = () => {
               <BookCover src={post.bookImage} alt={post.bookName} className="h-28 w-20 rounded" />
             </Link>
             <div className="min-w-0 flex-1">
-              <Badge tone={post.isPublic ? "trust" : "muted"}>
-                {post.isPublic ? t("profile.public") : t("profile.private")}
-              </Badge>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge tone={post.isPublic ? "trust" : "muted"}>
+                  {post.isPublic ? t("profile.public") : t("profile.private")}
+                </Badge>
+                {postStatus(post) !== "AVAILABLE" && (
+                  <Badge tone={postStatus(post) === "SOLD" ? "sold" : "reserved"}>
+                    {statusLabel(post, t)}
+                  </Badge>
+                )}
+              </div>
               <Link to={`/book/${post.id}`}>
                 <h3 className="mt-2 truncate font-display text-xl font-bold hover:text-primary">
                   {post.bookName}
@@ -172,6 +184,19 @@ const Profile = () => {
                 <p className="truncate text-sm text-muted-foreground">{post.bookAuthor}</p>
               )}
               <p className="mt-2 truncate font-bold text-primary">{dealLabel(post, t)}</p>
+              <select
+                value={postStatus(post)}
+                onChange={(e) => setStatus.mutate({ id: post.id, status: e.target.value })}
+                aria-label={t("status.change")}
+                title={t("status.change")}
+                className="mt-2 h-8 rounded-md border bg-background px-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-ring"
+              >
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {statusLabel(post, t, s)}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex flex-col items-end justify-between">
               <span className="whitespace-nowrap text-xs text-muted-foreground">

@@ -212,4 +212,81 @@ class ListingApiTest extends ApiTestBase {
         JsonNode post = createPost(seller, unique("Relative"));
         assertThat(post.path("bookImage").asText()).startsWith("/uploads/").endsWith(".jpg");
     }
+
+    @Test
+    void newListingsStartAvailable() throws Exception {
+        Account seller = register("Seller");
+        assertThat(createPost(seller, unique("Fresh")).path("status").asText()).isEqualTo("AVAILABLE");
+    }
+
+    @Test
+    void reservedListingsStayInTheFeedAndSoldOnesLeaveIt() throws Exception {
+        Account seller = register("Seller");
+        String name = unique("Dune");
+        long id = createPost(seller, name).path("id").asLong();
+
+        mvc.perform(jsonBody(as(seller, patch("/api/posts/" + id + "/status")), Map.of("status", "RESERVED")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RESERVED"));
+        mvc.perform(get("/api/posts").param("search", name))
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.data[0].status").value("RESERVED"));
+
+        mvc.perform(jsonBody(as(seller, patch("/api/posts/" + id + "/status")), Map.of("status", "SOLD")))
+                .andExpect(jsonPath("$.status").value("SOLD"));
+        mvc.perform(get("/api/posts").param("search", name)).andExpect(jsonPath("$.count").value(0));
+
+        // Still reachable by link and in the seller's own list.
+        mvc.perform(get("/api/posts/" + id)).andExpect(jsonPath("$.status").value("SOLD"));
+        mvc.perform(as(seller, get("/api/posts/me"))).andExpect(jsonPath("$.data[0].status").value("SOLD"));
+    }
+
+    @Test
+    void savedBooksStillShowOnceSold() throws Exception {
+        Account seller = register("Seller");
+        Account reader = register("Reader");
+        long id = createPost(seller, unique("Saved")).path("id").asLong();
+        mvc.perform(as(reader, post("/api/saved-posts/" + id))).andExpect(status().isOk());
+
+        mvc.perform(jsonBody(as(seller, patch("/api/posts/" + id + "/status")), Map.of("status", "SOLD")));
+
+        mvc.perform(as(reader, get("/api/saved-posts")))
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.data[0].status").value("SOLD"));
+    }
+
+    @Test
+    void onlyTheOwnerCanChangeTheStatus() throws Exception {
+        Account seller = register("Seller");
+        Account intruder = register("Intruder");
+        long id = createPost(seller, unique("Mine")).path("id").asLong();
+
+        mvc.perform(jsonBody(as(intruder, patch("/api/posts/" + id + "/status")), Map.of("status", "SOLD")))
+                .andExpect(status().isForbidden());
+        mvc.perform(jsonBody(patch("/api/posts/" + id + "/status"), Map.of("status", "SOLD")))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/posts/" + id)).andExpect(jsonPath("$.status").value("AVAILABLE"));
+    }
+
+    @Test
+    void unknownOrMissingStatusIsA400() throws Exception {
+        Account seller = register("Seller");
+        long id = createPost(seller, unique("Odd")).path("id").asLong();
+
+        mvc.perform(jsonBody(as(seller, patch("/api/posts/" + id + "/status")), Map.of("status", "STOLEN")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(jsonBody(as(seller, patch("/api/posts/" + id + "/status")), Map.of()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void editingAListingKeepsItsStatus() throws Exception {
+        Account seller = register("Seller");
+        long id = createPost(seller, unique("Kept")).path("id").asLong();
+        mvc.perform(jsonBody(as(seller, patch("/api/posts/" + id + "/status")), Map.of("status", "RESERVED")));
+
+        mvc.perform(listing(HttpMethod.PUT, "/api/posts/" + id, seller, Map.of("bookName", "Renamed")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RESERVED"));
+    }
 }

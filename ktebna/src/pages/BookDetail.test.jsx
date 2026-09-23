@@ -90,6 +90,27 @@ describe("BookDetail", () => {
     expect(screen.queryByRole("button", { name: "Message Seller" })).not.toBeInTheDocument();
   });
 
+  it("warns that a reserved book is being arranged but still allows messaging", async () => {
+    open({ ...post, status: "RESERVED" }, { user: { id: 9 } });
+    expect(await screen.findByText(/the seller is arranging this deal/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Message Seller" })).toBeInTheDocument();
+  });
+
+  it("stops offering to message about a sold book", async () => {
+    open({ ...post, status: "SOLD" }, { user: { id: 9 } });
+    expect(await screen.findByText("This book has found a new reader and is no longer available.")).toBeInTheDocument();
+    expect(screen.getByText("Swapped")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Message Seller" })).not.toBeInTheDocument();
+    // Saving and sharing still work.
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+  });
+
+  it("doesn't show visitor notices to the owner", async () => {
+    open({ ...post, status: "SOLD" }, { user: seller });
+    expect(await screen.findByText("This is your listing.")).toBeInTheDocument();
+    expect(screen.queryByText(/no longer available/)).not.toBeInTheDocument();
+  });
+
   it("hides private listings from everyone but their owner", async () => {
     open({ ...post, isPublic: false }, { user: { id: 9 } });
     expect(await screen.findByText("This book isn’t available anymore")).toBeInTheDocument();

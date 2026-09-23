@@ -2,6 +2,7 @@ package com.ktebna.backend.controller;
 
 import com.ktebna.backend.dto.PostForm;
 import com.ktebna.backend.dto.PostResponse;
+import com.ktebna.backend.dto.StatusRequest;
 import com.ktebna.backend.dto.VisibilityRequest;
 import com.ktebna.backend.entity.Post;
 import com.ktebna.backend.entity.User;
@@ -128,6 +129,16 @@ public class PostController {
         post.setPublic(req.isPublic());
         Post saved = postRepository.save(post);
         return toResponse(saved);
+    }
+
+    // Available / reserved / sold. Only the owner decides where a deal stands.
+    @PatchMapping("/{id}/status")
+    public PostResponse updateStatus(@AuthenticationPrincipal User currentUser,
+                                     @PathVariable Long id,
+                                     @Valid @RequestBody StatusRequest req) {
+        Post post = getOwnedPost(currentUser, id);
+        post.setStatus(req.getStatus());
+        return toResponse(postRepository.save(post));
     }
 
     @DeleteMapping("/{id}")

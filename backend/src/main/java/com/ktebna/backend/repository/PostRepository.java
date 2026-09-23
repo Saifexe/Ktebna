@@ -16,7 +16,10 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("delete from Post p where p.user.id = :userId")
     void deleteAllByOwner(@Param("userId") Long userId);
 
+    // Finished deals (SOLD) leave the feed; they stay reachable by link and in
+    // their owner's and savers' lists.
     @Query("select p from Post p where p.isPublic = true " +
+            "and p.status <> com.ktebna.backend.entity.PostStatus.SOLD " +
             "and (:category is null or p.bookCategory = :category) " +
             "and (:dealType is null or p.bookDealType = :dealType) " +
             "and (:location is null or p.bookLocation = :location) " +

@@ -6,7 +6,8 @@ import { Bookmark, Heart } from "lucide-react";
 import apiClient from "../apiClient";
 import { AuthContext } from "../auth/AuthProvider";
 import { useSaved } from "../hooks/useSaved";
-import { MAX_SAVED, dealLabel } from "../lib/listing";
+import { MAX_SAVED, dealLabel, postStatus, statusLabel } from "../lib/listing";
+import Badge from "../ui/Badge";
 import Button from "../ui/Button";
 import Spinner from "../ui/Spinner";
 import EmptyState from "../ui/EmptyState";
@@ -45,8 +46,20 @@ const SavedGrid = () => {
         <div key={post.id} className="flex flex-col">
           <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
             <Link to={`/book/${post.id}`}>
-              <BookCover src={post.bookImage} alt={post.bookName} className="size-full" />
+              <BookCover
+                src={post.bookImage}
+                alt={post.bookName}
+                className={`size-full ${postStatus(post) === "SOLD" ? "opacity-60 grayscale" : ""}`}
+              />
             </Link>
+            {postStatus(post) !== "AVAILABLE" && (
+              <Badge
+                tone={postStatus(post) === "SOLD" ? "sold" : "reserved"}
+                className="absolute start-2 top-2 shadow-sm"
+              >
+                {statusLabel(post, t)}
+              </Badge>
+            )}
             <Button
               size="icon"
               className="absolute end-2 top-2"

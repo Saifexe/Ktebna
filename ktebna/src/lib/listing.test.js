@@ -7,6 +7,8 @@ import {
   dealTone,
   formatDate,
   normalizeDealType,
+  postStatus,
+  statusLabel,
   timeAgo,
 } from "./listing";
 
@@ -69,6 +71,27 @@ describe("dates", () => {
 
   it("formats a full date in the reader's language", () => {
     expect(formatDate("2026-09-23T12:00:00Z", "en")).toBe("September 23, 2026");
+  });
+});
+
+describe("listing status", () => {
+  it("treats listings from before the status field as available", () => {
+    expect(postStatus({})).toBe("AVAILABLE");
+    expect(postStatus({ status: "RESERVED" })).toBe("RESERVED");
+  });
+
+  it("words a finished deal by its type", () => {
+    expect(statusLabel({ status: "SOLD", bookDealType: "sell" }, t)).toBe("Sold");
+    expect(statusLabel({ status: "SOLD", bookDealType: "Exchange" }, t)).toBe("Swapped");
+    expect(statusLabel({ status: "SOLD", bookDealType: "donate" }, t)).toBe("Given away");
+    expect(statusLabel({ status: "SOLD" }, t)).toBe("Sold");
+  });
+
+  it("labels any status for a menu, whatever the current one is", () => {
+    const swap = { status: "AVAILABLE", bookDealType: "exchange" };
+    expect(statusLabel(swap, t, "RESERVED")).toBe("Reserved");
+    expect(statusLabel(swap, t, "SOLD")).toBe("Swapped");
+    expect(statusLabel(swap, t)).toBe("Available");
   });
 });
 

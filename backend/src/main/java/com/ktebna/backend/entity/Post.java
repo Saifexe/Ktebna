@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -65,6 +68,14 @@ public class Post {
 
     @Column(name = "is_public", nullable = false)
     private boolean isPublic = true;
+
+    // VARCHAR rather than MySQL's native ENUM, so adding a status later needs no
+    // ALTER; the default fills in existing rows when Hibernate adds the column.
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnDefault("'AVAILABLE'")
+    @Column(name = "status", nullable = false, length = 20)
+    private PostStatus status = PostStatus.AVAILABLE;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
