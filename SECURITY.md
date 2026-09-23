@@ -2,7 +2,7 @@
 
 This document covers Ktebna's security gates, vulnerability remediation history, application-level security controls, and credential management practices. The per-job pipeline policy lives in **[docs/SECURITY_GATES.md](./docs/SECURITY_GATES.md)**.
 
-**Last reviewed:** 22 Sep 2026 (input-validation fixes and the database-backed Library). Pipeline #2872104317 (`a1e79d1`): all 12 jobs green, including the blocking Gitleaks and Trivy gates, so both images were published with **no fixable HIGH / CRITICAL** findings. The previous full review is pipeline #2868466261 (`2a24f62`, 21 Sep 2026).
+**Last reviewed:** 23 Sep 2026 (SonarCloud findings fixed, SonarCloud quality gate made blocking). SonarCloud reports a **passing quality gate**, security rating A with 0 open security issues, and 83.7% coverage. The gate was proven to block: pipeline #2875268416 (`d30ff44`), which added a deliberate new security issue, failed at `sonarcloud-check` with every later stage skipped; the next pipeline (`caf8c93`) passed all 12 jobs. The previous full review is pipeline #2872104317 (`a1e79d1`, 22 Sep 2026).
 
 ---
 
@@ -23,7 +23,7 @@ Automated gates run on every push through GitLab CI/CD (SonarCloud runs on `main
 
 | Gate | Tool | What it catches | Blocking? |
 |---|---|---|---|
-| Tests / lint | JUnit + Testcontainers, Vitest, ESLint | Backend regressions in auth, authorization, privacy, rate limiting, input limits and upload validation (86 tests, 94.9% line coverage); frontend regressions in login, listing, messaging and access to private pages (167 tests, 81% line coverage); lint errors | **Blocking** |
+| Tests / lint | JUnit + Testcontainers, Vitest, ESLint | Backend regressions in auth, authorization, privacy, rate limiting, input limits and upload validation (89 tests, 94.9% line coverage); frontend regressions in login, listing, messaging and access to private pages (170 tests, 81% line coverage); lint errors | **Blocking** |
 | Static Application Security Testing (SAST) | SonarCloud | Security, reliability and maintainability issues, test coverage and duplication in new code | **Blocking** when the "Sonar way" quality gate fails (`sonar.qualitygate.wait=true`) |
 | Secret scanning | Gitleaks v8.30.1 | Credentials, tokens, keys in the checked-out files **and in every commit of the history** (`GIT_DEPTH: 0`) | **Blocking** |
 | Filesystem vulnerability scanning | Trivy FS | Known CVEs in backend (Maven, offline DB) and frontend (npm) dependencies | **Blocking** on fixable HIGH/CRITICAL |

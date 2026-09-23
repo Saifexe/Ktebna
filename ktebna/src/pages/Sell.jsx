@@ -29,6 +29,11 @@ const EMPTY = {
   isPublic: true,
 };
 
+// Sales are always priced in Tunisian dinars: the seller types the amount only.
+const CURRENCY = "TND";
+const PRICE = /^\d{1,6}([.,]\d{1,3})?$/;
+const amountOf = (deal) => String(deal || "").replace(/\s*(TND|DT)\s*$/i, "").trim();
+
 const inputCls =
   "mt-2 h-12 w-full rounded-md border bg-surface-soft px-4 font-normal outline-none focus:ring-2 focus:ring-ring";
 
@@ -97,7 +102,8 @@ const Sell = () => {
       bookCategory: existing.bookCategory || "",
       bookCondition: existing.bookCondition || "",
       bookDealType: normalizeDealType(existing.bookDealType),
-      bookDeal: existing.bookDeal || "",
+      bookDeal:
+        normalizeDealType(existing.bookDealType) === "sell" ? amountOf(existing.bookDeal) : existing.bookDeal || "",
       bookDescription: existing.bookDescription || "",
       bookLocation: existing.bookLocation || "",
       pickupLat: existing.pickupLat ?? null,
@@ -131,8 +137,16 @@ const Sell = () => {
     2: (req) => ({
       bookCondition: !form.bookCondition && req,
       bookDealType: !form.bookDealType && req,
-      // A price or swap wish is needed unless the book is given away.
-      bookDeal: Boolean(form.bookDealType) && form.bookDealType !== "donate" && !form.bookDeal.trim() && req,
+      // A price or swap wish is needed unless the book is given away; a price
+      // must be an amount in TND.
+      bookDeal: (() => {
+        if (!form.bookDealType || form.bookDealType === "donate") return false;
+        if (!form.bookDeal.trim()) return req;
+        const invalidPrice =
+          form.bookDealType === "sell" &&
+          (!PRICE.test(form.bookDeal.trim()) || Number(form.bookDeal.trim().replace(",", ".")) <= 0);
+        return invalidPrice && t("sell.priceInvalid");
+      })(),
     }),
     3: (req) => ({ bookLocation: !form.bookLocation && req }),
   };
@@ -163,6 +177,7 @@ const Sell = () => {
       const body = new FormData();
       Object.entries(form).forEach(([key, value]) => {
         if (key === "bookDeal" && form.bookDealType === "donate") return body.append(key, "");
+        if (key === "bookDeal" && form.bookDealType === "sell") return body.append(key, `${value.trim()} ${CURRENCY}`);
         // No pin: leave the pickup fields out so the backend clears them.
         if (value === null || (key === "pickupSpot" && !value)) return;
         body.append(key, typeof value === "string" ? value.trim() : String(value));
@@ -319,15 +334,30 @@ const Sell = () => {
                   label={form.bookDealType === "sell" ? t("sell.price") : t("sell.swapFor")}
                   error={errors.bookDeal}
                 >
-                  <input
-                    value={form.bookDeal}
-                    onChange={(e) => set("bookDeal", e.target.value)}
-                    placeholder={
-                      form.bookDealType === "sell" ? t("sell.pricePlaceholder") : t("sell.swapPlaceholder")
-                    }
-                    maxLength={200}
-                    className={inputCls}
-                  />
+                  {form.bookDealType === "sell" ? (
+                    <span className="relative block">
+                      <input
+                        value={form.bookDeal}
+                        onChange={(e) => set("bookDeal", e.target.value)}
+                        placeholder={t("sell.pricePlaceholder")}
+                        inputMode="decimal"
+                        maxLength={10}
+                        dir="ltr"
+                        className={`${inputCls} pe-16`}
+                      />
+                      <span className="pointer-events-none absolute end-4 top-1/2 mt-1 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                        {CURRENCY}
+                      </span>
+                    </span>
+                  ) : (
+                    <input
+                      value={form.bookDeal}
+                      onChange={(e) => set("bookDeal", e.target.value)}
+                      placeholder={t("sell.swapPlaceholder")}
+                      maxLength={200}
+                      className={inputCls}
+                    />
+                  )}
                 </Field>
               )}
               <Field label={t("sell.notes")}>

@@ -214,6 +214,39 @@ class ListingApiTest extends ApiTestBase {
     }
 
     @Test
+    void salePricesAreAlwaysStoredInTnd() throws Exception {
+        Account seller = register("Seller");
+        Map<String, String> expected = Map.of(
+                "35", "35 TND",
+                "35 TND", "35 TND",
+                "35dt", "35 TND",
+                "12,500", "12.5 TND",
+                " 7.25 tnd ", "7.25 TND");
+        for (var entry : expected.entrySet()) {
+            JsonNode post = createPost(seller, unique("Priced"), true, Map.of("bookDeal", entry.getKey()));
+            assertThat(post.path("bookDeal").asText()).as(entry.getKey()).isEqualTo(entry.getValue());
+        }
+    }
+
+    @Test
+    void salePricesInOtherCurrenciesOrWordsAreRefused() throws Exception {
+        Account seller = register("Seller");
+        for (String price : new String[]{"25 €", "$20", "20 EUR", "cheap", "0", "-5", "", "1234567"}) {
+            Map<String, String> fields = Map.of("bookName", "Priced", "bookDealType", "sell", "bookDeal", price);
+            mvc.perform(listing(HttpMethod.POST, "/api/posts", seller, fields))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void swapsKeepTheirFreeTextWish() throws Exception {
+        Account seller = register("Seller");
+        JsonNode post = createPost(seller, unique("Swap"), true,
+                Map.of("bookDealType", "exchange", "bookDeal", "Any YA novel, or 20 TND"));
+        assertThat(post.path("bookDeal").asText()).isEqualTo("Any YA novel, or 20 TND");
+    }
+
+    @Test
     void newListingsStartAvailable() throws Exception {
         Account seller = register("Seller");
         assertThat(createPost(seller, unique("Fresh")).path("status").asText()).isEqualTo("AVAILABLE");

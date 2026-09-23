@@ -52,6 +52,7 @@ Old `/account/*` URLs redirect to their new equivalents.
 
 **Listings**
 - Three-step "List a Book" flow: photo and details, then condition and deal type (Direct Sale / Book Swap / Free Giving), then pickup city, optional map pin, and visibility. It shows a live preview card.
+- Sale prices are always in Tunisian dinars: the seller types only the amount next to a fixed **TND** label, and the backend stores it as `<amount> TND` (up to 3 decimals, for millimes) and refuses other currencies or words. Swap wishes stay free text.
 - Book page with condition badge, deal box, seller card, description, pickup details, map, and an "Open in Google Maps" link.
 - Owners can edit, hide/show, and delete their listings from their profile.
 - Each listing has a status the owner sets from their profile: **Available**, **Reserved** (a deal is being arranged; buyers can still ask to be next in line) or **Sold**, worded "Swapped" or "Given away" for swaps and gifts. Sold books leave the catalog but stay reachable by link, in the owner's profile and in readers' saved books, and their page no longer offers to message the seller.
@@ -328,7 +329,7 @@ Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by fil
 
 ## Testing
 
-The backend has **86 automated tests** with **94.9% line coverage**:
+The backend has **89 automated tests** with **94.9% line coverage**:
 
 | Layer | What it covers | How |
 |---|---|---|
@@ -344,7 +345,7 @@ cd backend
 
 Coverage is written to `backend/target/site/jacoco/index.html`. In CI, GitLab shows the test results in the pipeline's **Tests** tab and the coverage percentage on the job; SonarCloud reads the same JaCoCo report.
 
-The frontend has **167 tests** (Vitest + React Testing Library, in a simulated browser) covering 81% of its lines:
+The frontend has **170 tests** (Vitest + React Testing Library, in a simulated browser) covering 81% of its lines:
 
 - **Logic:** deal labels, listing statuses, dates, map links, the API client's token handling, session restore and login/logout, the chat service, and a check that French and Arabic translate every English string, category and city.
 - **Components:** the header (search, language menu, unread badge), book cards, covers, pagination, the saved-books shelf, the login form, the login prompt and the route guard.
@@ -364,8 +365,8 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
-| `test` | `backend-test` | 86 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
-| `test` | `frontend-test` | `npm run lint` (ESLint), then 167 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
+| `test` | `backend-test` | 89 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
+| `test` | `frontend-test` | `npm run lint` (ESLint), then 170 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only); waits for the quality gate verdict | **Yes**, when the quality gate fails |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
 | `security` | `trivy-fs-backend` | Maven dependency vulnerabilities | **Yes**, on fixable HIGH/CRITICAL |

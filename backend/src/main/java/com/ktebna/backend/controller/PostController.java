@@ -19,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -29,6 +31,12 @@ public class PostController {
     private final PostRepository postRepository;
     private final SavedPostRepository savedPostRepository;
     private final FileStorageService fileStorageService;
+
+    // A sale price in Tunisian dinars: up to 6 digits, up to 3 decimals (millimes),
+    // optionally already followed by "TND" or "DT". Anything else (another
+    // currency, words) is refused rather than guessed.
+    private static final Pattern TND_PRICE =
+            Pattern.compile("^(\\d{1,6}(?:[.,]\\d{1,3})?)\\s*(?:TND|DT)?$", Pattern.CASE_INSENSITIVE);
 
     // Public feed - anyone can browse
     @GetMapping
@@ -107,7 +115,7 @@ public class PostController {
         post.setBookName(form.getBookName());
         post.setBookAuthor(form.getBookAuthor());
         post.setBookCategory(form.getBookCategory());
-        post.setBookDeal(form.getBookDeal());
+        post.setBookDeal(normalizeDeal(form.getBookDealType(), form.getBookDeal()));
         post.setBookDealType(form.getBookDealType());
         post.setBookLocation(form.getBookLocation());
         post.setBookCondition(form.getBookCondition());
@@ -161,6 +169,23 @@ public class PostController {
 
     private String blankToNull(String s) {
         return (s == null || s.isBlank() || s.equalsIgnoreCase("All") || s.equalsIgnoreCase("allTunisia")) ? null : s;
+    }
+
+    // Sales are always priced in TND and stored as "<amount> TND". Swaps keep
+    // their free-text wish ("any YA novel"), gifts have no price.
+    private String normalizeDeal(String dealType, String deal) {
+        if (!"sell".equalsIgnoreCase(dealType)) {
+            return deal;
+        }
+        var match = deal == null ? null : TND_PRICE.matcher(deal.trim());
+        if (match == null || !match.matches()) {
+            throw new ApiException("Enter the price as a number of Tunisian dinars (TND)", HttpStatus.BAD_REQUEST);
+        }
+        BigDecimal amount = new BigDecimal(match.group(1).replace(',', '.'));
+        if (amount.signum() <= 0) {
+            throw new ApiException("The price must be more than 0 TND", HttpStatus.BAD_REQUEST);
+        }
+        return amount.stripTrailingZeros().toPlainString() + " TND";
     }
 
     // A pin needs both coordinates inside valid ranges; otherwise it is cleared.

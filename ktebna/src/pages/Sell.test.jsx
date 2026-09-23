@@ -60,7 +60,7 @@ describe("Sell: List a Book", () => {
     expect(screen.getByText("This field is required")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Free Giving" }));
-    expect(screen.queryByPlaceholderText("e.g. 25 TND")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("e.g. 25")).not.toBeInTheDocument();
     await next();
     expect(screen.getByText("Step 3 of 3")).toBeInTheDocument();
   });
@@ -71,7 +71,7 @@ describe("Sell: List a Book", () => {
     await fillDetails();
     await userEvent.click(screen.getByRole("button", { name: "Gently Read" }));
     await userEvent.click(screen.getByRole("button", { name: "Direct Sale" }));
-    await userEvent.type(screen.getByPlaceholderText("e.g. 25 TND"), " 25 TND ");
+    await userEvent.type(screen.getByPlaceholderText("e.g. 25"), " 25 ");
     await next();
     await userEvent.selectOptions(screen.getByRole("combobox"), "Tunis");
     await publish();
@@ -93,6 +93,42 @@ describe("Sell: List a Book", () => {
     expect(call[1].get("image")).toBe(cover);
     expect(toast.success).toHaveBeenCalledWith("Your book is listed!");
     expect(screen.getByTestId("url")).toHaveTextContent("/book/42");
+  });
+
+  it("prices sales in TND only: the seller types just the amount", async () => {
+    renderPage(<Sell />, { path: "/sell", route: "/sell", user: me });
+    await fillDetails();
+    await userEvent.click(screen.getByRole("button", { name: "Like New" }));
+    await userEvent.click(screen.getByRole("button", { name: "Direct Sale" }));
+    expect(screen.getByText("TND")).toBeInTheDocument();
+
+    const price = screen.getByPlaceholderText("e.g. 25");
+    for (const wrong of ["25 €", "$20", "cheap", "0"]) {
+      await userEvent.clear(price);
+      await userEvent.type(price, wrong);
+      await next();
+      expect(screen.getByText("Enter the price as a number of dinars, e.g. 25 or 12.5")).toBeInTheDocument();
+      expect(screen.getByText("Step 2 of 3")).toBeInTheDocument();
+    }
+
+    await userEvent.clear(price);
+    await userEvent.type(price, "12,5");
+    await next();
+    expect(screen.getByText("Step 3 of 3")).toBeInTheDocument();
+  });
+
+  it("keeps a swap wish as free text", async () => {
+    apiClient.post.mockResolvedValue({ data: { id: 43 } });
+    renderPage(<Sell />, { path: "/sell", route: "/sell", user: me });
+    await fillDetails();
+    await userEvent.click(screen.getByRole("button", { name: "Like New" }));
+    await userEvent.click(screen.getByRole("button", { name: "Book Swap" }));
+    expect(screen.queryByText("TND")).not.toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText("e.g. Any Naguib Mahfouz novel"), "Any YA novel");
+    await next();
+    await userEvent.selectOptions(screen.getByRole("combobox"), "Tunis");
+    await publish();
+    expect(sentForm(apiClient.post.mock.calls[0])).toMatchObject({ bookDealType: "exchange", bookDeal: "Any YA novel" });
   });
 
   it("jumps back to the step with a missing field when publishing", async () => {
@@ -151,6 +187,25 @@ describe("Sell: List a Book", () => {
     expect(sentForm(call)).toMatchObject({ bookDealType: "donate", bookDeal: "", isPublic: "false" });
     expect(call[1].has("image")).toBe(false);
     expect(toast.success).toHaveBeenCalledWith("Listing updated");
+  });
+
+  it("shows an existing sale's price as just the amount, and saves it in TND", async () => {
+    apiClient.get.mockImplementation(
+      routeGets({
+        "/api/posts/8": {
+          id: 8, user: me, bookName: "Dune", bookCategory: "Fiction", bookCondition: "likeNew",
+          bookDealType: "sell", bookDeal: "35 TND", bookLocation: "Sfax", bookImage: "/uploads/d.jpg", isPublic: true,
+        },
+      }),
+    );
+    apiClient.put.mockResolvedValue({ data: { id: 8 } });
+    renderPage(<Sell />, { path: "/sell/8", route: "/sell/:id", user: me });
+    await screen.findByDisplayValue("Dune");
+    await next();
+    expect(screen.getByPlaceholderText("e.g. 25")).toHaveValue("35");
+    await next();
+    await userEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    expect(sentForm(apiClient.put.mock.calls[0])).toMatchObject({ bookDeal: "35 TND" });
   });
 
   it("refuses to edit someone else's listing", async () => {
