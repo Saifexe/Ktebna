@@ -1,3 +1,29 @@
+# Runner minutes are limited (400/month on the free plan), so a push that only
+# touches documentation starts no pipeline. Schedules, manual runs and pushes
+# that change anything below always run. The next pipeline's Gitleaks job still
+# scans the whole history, so a secret pushed in a .md file is caught then.
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE != "push"'
+    - changes:
+        - backend/**/*
+        - ktebna/**/*
+        - k8s/**/*
+        - monitoring/**/*
+        - scripts/**/*
+        - docker-compose.yml
+        - .gitlab-ci.yml
+        - .gitleaksignore
+        - .gitattributes
+        - .env.example
+
+
+# If a newer push arrives, a running pipeline for an older commit is cancelled
+# instead of finishing for nothing. Publishing is never cut off mid-push.
+default:
+  interruptible: true
+
+
 stages:
   - test
   - sonarcloud
@@ -16,10 +42,18 @@ variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
 
 
-cache:
-  key: maven-repo
-  paths:
-    - .m2/repository
+# Trivy's vulnerability database is downloaded once and shared by every Trivy
+# job through this cache, instead of four downloads per pipeline.
+.trivy:
+  image:
+    name: aquasec/trivy:0.74.0
+    entrypoint: [""]
+  variables:
+    TRIVY_CACHE_DIR: .trivycache/
+  cache:
+    key: trivy-db
+    paths:
+      - .trivycache/
 
 
 # The nightly schedule only re-scans the published images (see NIGHTLY SCAN);
@@ -52,6 +86,12 @@ backend-test:
     # The dind service is thrown away with the job, so the reaper isn't needed.
     TESTCONTAINERS_RYUK_DISABLED: "true"
 
+  # Only this job uses Maven; a global cache made all 12 jobs download it.
+  cache:
+    key: maven-repo
+    paths:
+      - .m2/repository
+
   script:
     - cd backend
     - mvn test -B
@@ -79,9 +119,16 @@ frontend-test:
   stage: test
   image: node:22-alpine
 
+  cache:
+    key:
+      files:
+        - ktebna/package-lock.json
+    paths:
+      - ktebna/.npm/
+
   script:
     - cd ktebna
-    - npm ci
+    - npm ci --cache .npm --prefer-offline
     - npm run lint
     - npx vitest run --coverage --reporter=default --reporter=junit --outputFile.junit=junit.xml
     # lcov paths are relative to ktebna/; SonarCloud resolves them from the repo root.
@@ -170,12 +217,9 @@ gitleaks:
 # that has a fix available. Unfixed CVEs stay visible in the report but can't
 # block, since there would be nothing to upgrade to.
 trivy-fs-backend:
-  extends: .skip-on-schedule
+  extends: [.skip-on-schedule, .trivy]
   stage: security
 
-  image:
-    name: aquasec/trivy:0.74.0
-    entrypoint: [""]
 
   script:
     # --offline-scan: Maven Central rate-limits (429) repeated POM lookups from CI IPs.
@@ -184,12 +228,9 @@ trivy-fs-backend:
 
 
 trivy-fs-frontend:
-  extends: .skip-on-schedule
+  extends: [.skip-on-schedule, .trivy]
   stage: security
 
-  image:
-    name: aquasec/trivy:0.74.0
-    entrypoint: [""]
 
   script:
     - trivy fs --scanners vuln --exit-code 0 ./ktebna
@@ -282,11 +323,8 @@ build-frontend:
 ####################
 
 trivy-backend-image:
-  extends: .skip-on-schedule
+  extends: [.skip-on-schedule, .trivy]
   stage: scan
-  image:
-    name: aquasec/trivy:0.74.0
-    entrypoint: [""]
   needs:
     - build-backend
   script:
@@ -294,11 +332,8 @@ trivy-backend-image:
     - trivy image --input backend-image.tar.gz --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed
 
 trivy-frontend-image:
-  extends: .skip-on-schedule
+  extends: [.skip-on-schedule, .trivy]
   stage: scan
-  image:
-    name: aquasec/trivy:0.74.0
-    entrypoint: [""]
   needs:
     - build-frontend
   script:
@@ -315,6 +350,8 @@ trivy-frontend-image:
 publish-backend:
   extends: .skip-on-schedule
   stage: publish
+  # Never cancel a push to the registry halfway.
+  interruptible: false
   image: docker:27
   services:
     - docker:27-dind
@@ -333,6 +370,8 @@ publish-backend:
 publish-frontend:
   extends: .skip-on-schedule
   stage: publish
+  # Never cancel a push to the registry halfway.
+  interruptible: false
   image: docker:27
   services:
     - docker:27-dind
@@ -359,10 +398,8 @@ publish-frontend:
 # images already in the registry, with the same gate as the scan stage.
 
 .nightly-scan:
+  extends: .trivy
   stage: scan
-  image:
-    name: aquasec/trivy:0.74.0
-    entrypoint: [""]
   needs: []
   variables:
     # Trivy pulls straight from the GitLab registry with the job's own token.

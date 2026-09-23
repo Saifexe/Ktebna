@@ -381,6 +381,8 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 
 Images reach the registry only after their own scan passes, and what gets pushed is the exact artifact that was scanned. Each Trivy job first prints a full report (all severities, never fails), then runs the gate: HIGH/CRITICAL findings that have a fixed version fail the job. CVEs with no fix yet stay visible in the report but don't block, since there is nothing to upgrade to.
 
+**Saving runner minutes.** The free plan allows 400 CI minutes a month, so the pipeline avoids waste: a push that only changes documentation (`*.md` outside the code folders) starts no pipeline at all; a pipeline for an older commit is cancelled when a newer push arrives (except the publish jobs, which are never cut off mid-push); and each cache is scoped to the jobs that use it: Maven for `backend-test`, npm for `frontend-test`, and one shared Trivy vulnerability database for the Trivy jobs.
+
 **Nightly scan.** New CVEs are published every day, so an image that was clean when it was pushed can become vulnerable without any code change. A pipeline schedule (CI/CD → Schedules, every night on `main`) runs only `nightly-scan-backend` and `nightly-scan-frontend`: they re-scan the `:latest` images already in the registry with the same HIGH/CRITICAL gate, and every other job is skipped. A red nightly pipeline usually just means the image needs rebuilding, since the frontend's `apk upgrade` and a fresh base image pick up the fixed packages.
 
 **CI/CD variables** (Settings → CI/CD → Variables):
