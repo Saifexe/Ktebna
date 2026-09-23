@@ -32,6 +32,9 @@ spec:
       labels:
         app: mysql
     spec:
+      # None of these pods call the Kubernetes API, so they don't need its
+      # credentials mounted (they would only help an attacker who got in).
+      automountServiceAccountToken: false
       containers:
         - name: mysql
           image: mysql:8.0
@@ -55,6 +58,16 @@ spec:
           volumeMounts:
             - name: mysql-data
               mountPath: /var/lib/mysql
+          # MySQL 8 uses about 420 MiB here. Data lives on the PVC; ephemeral
+          # storage covers temp tables and logs.
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+              ephemeral-storage: 100Mi
+            limits:
+              memory: 1Gi
+              ephemeral-storage: 1Gi
           readinessProbe:
             exec:
               command:

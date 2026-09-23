@@ -37,6 +37,17 @@ Leaked secrets block unconditionally: a leaked secret needs immediate rotation, 
 
 ## Vulnerability remediation log
 
+### 23 Sep 2026: SonarCloud security and reliability findings (fixed)
+
+**Detected by:** SonarCloud (20 open issues with security or reliability impact, all medium severity). Every one was fixed in code; none was dismissed as a false positive.
+
+| Finding | Impact | Fix |
+|---|---|---|
+| Upload limit of 10 MB, above the rule's 8 MB (2 issues) | Larger bodies let one request make the server buffer more data | Limit lowered to 8 MB in Spring and Nginx; verified live (7 MB accepted, 9 MB rejected with `413` by both layers) |
+| Pods mounted a Kubernetes service-account token (3 issues) | None of the pods calls the Kubernetes API, so the token only helped an attacker who got into a pod | `automountServiceAccountToken: false` on all three Deployments; verified that the token directory is absent in the pod |
+| No memory limits, CPU/memory requests or ephemeral-storage requests/limits (14 issues) | A leak in one pod could starve the others or fill the node's disk; the scheduler couldn't place pods sensibly | `resources` on every container, sized from measured use; the backend gets `-XX:MaxRAMPercentage=75` so the JVM heap follows its 1 GiB limit (768 MiB) |
+| `npm ci` ran dependency lifecycle scripts in the frontend build (1 issue) | A compromised package could run code during the image build | `npm ci --ignore-scripts`; the build needs no install scripts, verified by rebuilding and serving the app |
+
 ### 22 Sep 2026: Input validation, logic holes and broken uploads (fixed)
 
 **Detected by:** a full code review of the app, and, for the uploads bug, by re-adding the Library books through the API against the running Compose stack.
@@ -142,7 +153,7 @@ A full audit of the repository, its history, Docker Compose, the Kubernetes mani
 | Errors | Clients get generic messages; details are logged server-side. |
 | Account deletion | Deletes the user's bookmarks, bookmarks others made on their posts, messages and conversations they took part in, their posts, then the user, in one transaction (fixed in v2; it previously failed on foreign keys). |
 | Input limits | Every text field is length-limited to its database column (a longer value is a `400`); page sizes are capped at 50. |
-| Uploads | Only real JPEG/PNG/GIF/WebP files (checked by magic bytes), stored under random UUID names with an extension derived from the content. Size is capped at 10 MB by both Nginx and Spring. Stored as relative `/uploads/…` paths and served same-origin through Nginx. |
+| Uploads | Only real JPEG/PNG/GIF/WebP files (checked by magic bytes), stored under random UUID names with an extension derived from the content. Size is capped at 8 MB by both Nginx and Spring. Stored as relative `/uploads/…` paths and served same-origin through Nginx. |
 | Library links | Shared PDFs are external links: only `http(s)` URLs are accepted (no `javascript:` or `data:`), they open in a new tab with `noopener,noreferrer`, only the sharer can remove a book, and sharing is rate-limited per user. The share form asks for public-domain or publisher-provided books only. |
 | Maps | Pickup pins are optional and user-chosen; the UI tells sellers to pick a public meeting place and never a home address. Coordinates outside valid ranges are discarded server-side. |
 | Outbound calls | The mailer is called asynchronously with 10 s connect / 90 s read timeouts, so a slow or unreachable mailer can't tie up request threads or delay chat messages. |

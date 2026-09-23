@@ -322,7 +322,7 @@ Hidden listings return `404` to everyone except their owner. Email addresses are
 
 **Listing fields** (multipart): `bookName` (required), `bookAuthor`, `bookCategory`, `bookCondition` (`likeNew` · `gentlyRead` · `wellLoved` · `collectors`), `bookDealType` (`sell` · `exchange` · `donate`), `bookDeal` (price or swap wish), `bookDescription`, `bookLocation` (city), `pickupLat`, `pickupLng`, `pickupSpot`, `isPublic`, `image`.
 
-Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by file name), up to **10 MB** (enforced by both Nginx and Spring). Uploaded images are served from `/uploads/**`; health and metrics from `/actuator/health` and `/actuator/prometheus`.
+Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by file name), up to **8 MB** (enforced by both Nginx and Spring). Uploaded images are served from `/uploads/**`; health and metrics from `/actuator/health` and `/actuator/prometheus`.
 
 ---
 

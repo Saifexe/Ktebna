@@ -13,6 +13,9 @@ spec:
       labels:
         app: frontend
     spec:
+      # None of these pods call the Kubernetes API, so they don't need its
+      # credentials mounted (they would only help an attacker who got in).
+      automountServiceAccountToken: false
       containers:
         - name: frontend
           # Loaded straight into the node, not pulled: the node can't pull from the
@@ -26,6 +29,15 @@ spec:
           # `backend` Service.
           ports:
             - containerPort: 8080
+          # nginx serving static files uses about 20 MiB.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+              ephemeral-storage: 50Mi
+            limits:
+              memory: 128Mi
+              ephemeral-storage: 256Mi
           readinessProbe:
             httpGet:
               path: /
