@@ -149,7 +149,7 @@ A full audit of the repository, its history, Docker Compose, the Kubernetes mani
 | Authorization | Ownership checks on every listing mutation (edit, visibility, delete → `403` otherwise) and on reading hidden listings (`404`); participant checks on every conversation, message, and mark-read call. |
 | Privacy | Email addresses are only ever returned to their owner. The public profile endpoints (`/api/users/{id}/profile` and `/posts`), the only `/api/users` routes open to visitors, return a fixed set of public fields and exclude hidden listings; tests check that no email ever appears in them. |
 | Abuse limits | Rate limits at Nginx and in the backend (see finding 8 above); `429` with `Retry-After`. |
-| Browser | CSP and related security headers on every page; `server_tokens off`. |
+| Browser | CSP and related security headers on every response, each sent once: `add_header_inherit merge` keeps them on locations that add their own headers (assets, uploads, the page), and the backend's duplicate copies are hidden; `server_tokens off`. |
 | Errors | Clients get generic messages; details are logged server-side. |
 | Account deletion | Deletes the user's bookmarks, bookmarks others made on their posts, messages and conversations they took part in, their posts, then the user, in one transaction (fixed in v2; it previously failed on foreign keys). |
 | Input limits | Every text field is length-limited to its database column (a longer value is a `400`); page sizes are capped at 50. |

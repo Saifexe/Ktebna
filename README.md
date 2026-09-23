@@ -70,6 +70,7 @@ Old `/account/*` URLs redirect to their new equivalents.
 - Public reader profiles (`/user/:id`), open to visitors: photo, name, "member since", the books they currently offer, and how many deals they've completed, with a button to message them. Reached from the seller card on a book page and from a chat's header. Emails, hidden listings, saved books and conversations never appear there.
 
 **Everywhere**
+- Fast repeat visits: Nginx lets browsers keep versioned JS/CSS for a year and uploaded covers for a week (their names never change), always re-checks the page itself so a new release shows at once, compresses text and API responses (about 4× smaller JSON), and keeps connections to the backend open between requests.
 - English, French, and Arabic, with full right-to-left layout in Arabic.
 - Free PDF library (`/books`): readers share links to books that are free to read (public domain or publisher excerpts), with language and category filters.
 
