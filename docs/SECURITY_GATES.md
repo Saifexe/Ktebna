@@ -18,6 +18,7 @@ This project uses GitLab CI/CD to run automated quality and security checks befo
 | `scan` | `trivy-frontend-image` | Trivy image | Scans the saved frontend image | Fails on fixable HIGH/CRITICAL |
 | `publish` | `publish-backend` | Docker | Pushes the scanned backend image to the registry | Runs only if its scan passed |
 | `publish` | `publish-frontend` | Docker | Pushes the scanned frontend image to the registry | Runs only if its scan passed |
+| `scan` (nightly) | `nightly-scan-backend`, `nightly-scan-frontend` | Trivy image | Re-scans the published `:latest` images every night, to catch CVEs disclosed after they were pushed; only these jobs run in the scheduled pipeline | Fails on fixable HIGH/CRITICAL |
 
 ## Vulnerability Severity Policy
 

@@ -22,11 +22,21 @@ cache:
     - .m2/repository
 
 
+# The nightly schedule only re-scans the published images (see NIGHTLY SCAN);
+# every regular job extends this so it is skipped in that pipeline.
+.skip-on-schedule:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+    - when: on_success
+
+
 ####################
 # TEST STAGE
 ####################
 
 backend-test:
+  extends: .skip-on-schedule
   stage: test
   image: maven:3.9-eclipse-temurin-17
 
@@ -65,6 +75,7 @@ backend-test:
 
 
 frontend-test:
+  extends: .skip-on-schedule
   stage: test
   image: node:22-alpine
 
@@ -116,6 +127,8 @@ sonarcloud-check:
       -Dsonar.cpd.exclusions=ktebna/src/locales/**,ktebna/src/i18n.js
 
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "main"'
 
   allow_failure: true
@@ -127,6 +140,7 @@ sonarcloud-check:
 ####################
 
 gitleaks:
+  extends: .skip-on-schedule
   stage: security
 
   image:
@@ -152,6 +166,7 @@ gitleaks:
 # that has a fix available. Unfixed CVEs stay visible in the report but can't
 # block, since there would be nothing to upgrade to.
 trivy-fs-backend:
+  extends: .skip-on-schedule
   stage: security
 
   image:
@@ -165,6 +180,7 @@ trivy-fs-backend:
 
 
 trivy-fs-frontend:
+  extends: .skip-on-schedule
   stage: security
 
   image:
@@ -184,6 +200,7 @@ trivy-fs-frontend:
 # registry until the scan stage has passed (see PUBLISH STAGE).
 
 build-backend:
+  extends: .skip-on-schedule
 
   stage: build
 
@@ -212,6 +229,7 @@ build-backend:
 
 
 build-frontend:
+  extends: .skip-on-schedule
 
   stage: build
 
@@ -256,6 +274,7 @@ build-frontend:
 ####################
 
 trivy-backend-image:
+  extends: .skip-on-schedule
   stage: scan
   image:
     name: aquasec/trivy:0.74.0
@@ -267,6 +286,7 @@ trivy-backend-image:
     - trivy image --input backend-image.tar.gz --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed
 
 trivy-frontend-image:
+  extends: .skip-on-schedule
   stage: scan
   image:
     name: aquasec/trivy:0.74.0
@@ -285,6 +305,7 @@ trivy-frontend-image:
 # Runs only when the image's own scan passed; pushes exactly the bytes scanned.
 
 publish-backend:
+  extends: .skip-on-schedule
   stage: publish
   image: docker:27
   services:
@@ -302,6 +323,7 @@ publish-backend:
     - docker push $BACKEND_IMAGE:latest
 
 publish-frontend:
+  extends: .skip-on-schedule
   stage: publish
   image: docker:27
   services:
@@ -317,3 +339,39 @@ publish-frontend:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - docker push $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
     - docker push $FRONTEND_IMAGE:latest
+
+
+
+####################
+# NIGHTLY SCAN
+####################
+# New CVEs are published every day, so an image that passed its scan at push
+# time can become vulnerable without any code change. A pipeline schedule
+# (CI/CD > Schedules, nightly on main) runs only these jobs: they re-scan the
+# images already in the registry, with the same gate as the scan stage.
+
+.nightly-scan:
+  stage: scan
+  image:
+    name: aquasec/trivy:0.74.0
+    entrypoint: [""]
+  needs: []
+  variables:
+    # Trivy pulls straight from the GitLab registry with the job's own token.
+    TRIVY_USERNAME: $CI_REGISTRY_USER
+    TRIVY_PASSWORD: $CI_REGISTRY_PASSWORD
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  script:
+    - trivy image --exit-code 0 "$IMAGE:latest"
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed "$IMAGE:latest"
+
+nightly-scan-backend:
+  extends: .nightly-scan
+  variables:
+    IMAGE: $BACKEND_IMAGE
+
+nightly-scan-frontend:
+  extends: .nightly-scan
+  variables:
+    IMAGE: $FRONTEND_IMAGE
