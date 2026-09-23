@@ -339,6 +339,18 @@ cd backend
 
 Coverage is written to `backend/target/site/jacoco/index.html`. In CI, GitLab shows the test results in the pipeline's **Tests** tab and the coverage percentage on the job; SonarCloud reads the same JaCoCo report.
 
+The frontend has **107 tests** (Vitest + React Testing Library, in a simulated browser) covering 56% of its lines:
+
+- **Logic:** deal labels, dates, map links, the API client's token handling, and a check that French and Arabic translate every English string, category and city.
+- **Components:** book cards, covers, pagination, the unread badge, the login form and the route guard.
+- **Pages, end to end against a mocked API:** browsing with search, filters and pagination; the book page (owner vs. visitor, private listings, messaging); the three-step "List a Book" flow with its validation; the inbox; and the profile (hide, delete, rename).
+
+```bash
+cd ktebna
+npm test                 # run once
+npm run test:coverage    # plus a coverage report in ktebna/coverage/
+```
+
 ---
 
 ## CI/CD pipeline
@@ -347,8 +359,8 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
-| `test` | `backend-test` | 63 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
-| `test` | `frontend-lint` | `npm ci` + `npm run lint` (ESLint) | **Yes** |
+| `test` | `backend-test` | 76 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
+| `test` | `frontend-test` | `npm run lint` (ESLint), then 107 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only) | No (`allow_failure`) |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
 | `security` | `trivy-fs-backend` | Maven dependency vulnerabilities | **Yes**, on fixable HIGH/CRITICAL |

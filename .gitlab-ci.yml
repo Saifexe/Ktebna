@@ -64,14 +64,27 @@ backend-test:
     expire_in: 1 week
 
 
-frontend-lint:
+frontend-test:
   stage: test
-  image: node:20-alpine
+  image: node:22-alpine
 
   script:
     - cd ktebna
     - npm ci
     - npm run lint
+    - npx vitest run --coverage --reporter=default --reporter=junit --outputFile.junit=junit.xml
+    # lcov paths are relative to ktebna/; SonarCloud resolves them from the repo root.
+    - sed -i 's#^SF:#SF:ktebna/#' coverage/lcov.info
+
+  coverage: '/Lines\s*:\s*\d+\.\d+%/'
+
+  artifacts:
+    when: always
+    reports:
+      junit: ktebna/junit.xml
+    paths:
+      - ktebna/coverage/lcov.info
+    expire_in: 1 week
 
 
 
@@ -96,9 +109,10 @@ sonarcloud-check:
       -Dsonar.sources=.
       -Dsonar.host.url=https://sonarcloud.io
       -Dsonar.scanner.skipJreProvisioning=true
-      -Dsonar.exclusions=backend/src/test/**,**/node_modules/**,**/dist/**
+      -Dsonar.exclusions=backend/src/test/**,**/node_modules/**,**/dist/**,ktebna/coverage/**,ktebna/src/**/*.test.js,ktebna/src/**/*.test.jsx,ktebna/src/test/**
       -Dsonar.java.binaries=backend/target/classes
       -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
+      -Dsonar.javascript.lcov.reportPaths=ktebna/coverage/lcov.info
       -Dsonar.cpd.exclusions=ktebna/src/locales/**,ktebna/src/i18n.js
 
   rules:
