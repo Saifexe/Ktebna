@@ -1,7 +1,17 @@
-# No notification integrations configured on purpose: alerts are visible in
-# Alertmanager's own UI (localhost:9093) and via Grafana's ALERTS metric, but
-# nothing gets emailed/Slacked out. Add a receiver integration (email_configs,
-# slack_configs, ...) under 'default' below when you're ready to wire that up.
+# Template: entrypoint.sh fills in the __PLACEHOLDERS__ from .env at start-up,
+# because Alertmanager can't read environment variables itself.
+#
+# Email is optional. Without ALERT_EMAIL_TO, every line tagged "email-only" is
+# dropped and alerts stay visible only in Alertmanager's UI (localhost:9093)
+# and in Grafana. The SMTP password never appears here: entrypoint.sh writes it
+# to a file only Alertmanager's user can read (smtp_auth_password_file).
+global:
+  smtp_smarthost: "__ALERT_SMTP_HOST__" # email-only
+  smtp_from: "Ktebna alerts <__ALERT_EMAIL_FROM__>" # email-only
+  smtp_auth_username: "__ALERT_EMAIL_FROM__" # email-only
+  smtp_auth_password_file: /tmp/smtp_password # email-only
+  smtp_require_tls: true # email-only
+
 route:
   receiver: "default"
   group_by: ["alertname", "severity"]
@@ -11,3 +21,7 @@ route:
 
 receivers:
   - name: "default"
+    email_configs: # email-only
+      - to: "__ALERT_EMAIL_TO__" # email-only
+        # Also mail when the problem clears, so the inbox tells the whole story.
+        send_resolved: true # email-only

@@ -407,7 +407,18 @@ In Docker Compose, Prometheus scrapes those metrics and Grafana auto-provisions 
 
 ### Alerting
 
-Prometheus evaluates the rules in `monitoring/prometheus/alerts.yml` (backend down, high/critical error rate, high p99 latency, DB pool exhaustion, DB connection timeouts, JVM heap near max, low disk space) and forwards firing alerts to Alertmanager (`monitoring/alertmanager/alertmanager.yml`). Alertmanager is configured with a `default` receiver that has no notification integration — firing alerts are visible in its own UI (http://localhost:9093), in Prometheus's own Alerts page (http://localhost:9090/alerts), and in the Grafana dashboard's Alerts row, but nothing is emailed or posted to Slack. Add `email_configs`/`slack_configs` etc. under that receiver to wire up real delivery.
+Prometheus evaluates the rules in `monitoring/prometheus/alerts.yml` (backend down, high/critical error rate, high p99 latency, DB pool exhaustion, DB connection timeouts, JVM heap near max, low disk space) and forwards firing alerts to Alertmanager (`monitoring/alertmanager/alertmanager.yml`). Firing alerts are visible in Alertmanager's UI (http://localhost:9093), in Prometheus's Alerts page (http://localhost:9090/alerts), and in the Grafana dashboard's Alerts row.
+
+**Email alerts (optional).** Set these in `.env`, then run `docker compose up -d alertmanager`:
+
+```bash
+ALERT_EMAIL_TO=you@example.com
+ALERT_EMAIL_FROM=your.address@gmail.com
+ALERT_SMTP_PASSWORD=<Gmail App Password>   # Google Account > Security > App passwords
+# ALERT_SMTP_HOST=smtp.gmail.com:587      # default; change for another provider
+```
+
+Alertmanager then emails every firing alert, and again when it resolves. It can't read environment variables itself, so `monitoring/alertmanager/entrypoint.sh` fills them into the config at start-up and writes the password to a file only Alertmanager's user can read; it never appears in the config or in git. Without `ALERT_EMAIL_TO`, the email settings are left out and alerts stay in the UIs above. To try it, stop the backend (`docker compose stop backend`): `BackendDown` fires after about a minute and the email follows within a minute.
 
 Monitoring is not deployed to Kubernetes (see [Known issues](#known-issues)).
 
