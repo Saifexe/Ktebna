@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
-# Copy the Compose-built images straight into the Docker Desktop Kubernetes node,
-# bypassing the GitLab registry pull that fails there (see README Known Issues).
+# Copy the images CI published (built, Trivy-scanned and pushed by the pipeline
+# on main) into the Docker Desktop Kubernetes node. The host pulls them from
+# the GitLab registry; only the node's own registry pull is broken (see README
+# Known Issues), so this sidesteps it without running anything CI didn't scan.
 #
-#   docker compose build backend frontend
-#   scripts/k8s-load-images.sh a1e79d1        # any tag; use the commit you built
+#   docker login registry.gitlab.com      # once; a token with read_registry
+#   scripts/k8s-load-images.sh 6586d1f0    # the 8-character short SHA CI tagged
 #   # then set the same tag in k8s/backend.yaml and k8s/frontend.yaml
 #   kubectl apply -f k8s/
 set -euo pipefail
 
-tag="${1:?usage: scripts/k8s-load-images.sh <tag>  (e.g. the short commit SHA)}"
+tag="${1:?usage: scripts/k8s-load-images.sh <tag>  (the 8-character short commit SHA of a green main pipeline)}"
+registry="${KTEBNA_REGISTRY:-registry.gitlab.com/saifexd-group/ktebna}"
 node="${K8S_NODE:-desktop-control-plane}"
 
 for app in backend frontend; do
-  docker tag "ktebna-springboot-mysql-$app:latest" "ktebna/$app:$tag"
-  echo "Loading ktebna/$app:$tag into $node"
-  docker save "ktebna/$app:$tag" | docker exec -i "$node" ctr -n k8s.io images import --all-platforms -
+  image="$registry/$app:$tag"
+  echo "Pulling $image"
+  docker pull "$image"
+  echo "Loading $image into $node"
+  docker save "$image" | docker exec -i "$node" ctr -n k8s.io images import --all-platforms -
 done
 
-docker exec "$node" crictl images | grep "ktebna/" || true
+docker exec "$node" crictl images | grep "$registry/" || true

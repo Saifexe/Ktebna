@@ -37,11 +37,12 @@ spec:
         fsGroup: 10001
       containers:
         - name: backend
-          # Loaded straight into the node, not pulled: the node can't pull from the
-          # GitLab registry (see README Known Issues). Build with Compose, then run
-          # scripts/k8s-load-images.sh <tag>. `Never` makes a missing image fail
-          # loudly instead of falling back to the broken registry pull.
-          image: ktebna/backend:0bc8445
+          # The image CI built, scanned and published on main. The node can't pull
+          # from the GitLab registry itself (see README Known Issues), so
+          # scripts/k8s-load-images.sh <tag> pulls it on the host and loads it in.
+          # `Never` makes a missing image fail loudly instead of falling back to
+          # the broken registry pull.
+          image: registry.gitlab.com/saifexd-group/ktebna/backend:6586d1f0
           imagePullPolicy: Never
           ports:
             - containerPort: 8080

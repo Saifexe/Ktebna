@@ -346,9 +346,16 @@ trivy-frontend-image:
 # PUBLISH STAGE
 ####################
 # Runs only when the image's own scan passed; pushes exactly the bytes scanned.
+# Only main publishes: it is the only branch the blocking SonarCloud gate runs
+# on, so a push to any other branch can never replace :latest with unreviewed code.
+.publish-main-only:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 publish-backend:
-  extends: .skip-on-schedule
+  extends: .publish-main-only
   stage: publish
   # Never cancel a push to the registry halfway.
   interruptible: false
@@ -368,7 +375,7 @@ publish-backend:
     - docker push $BACKEND_IMAGE:latest
 
 publish-frontend:
-  extends: .skip-on-schedule
+  extends: .publish-main-only
   stage: publish
   # Never cancel a push to the registry halfway.
   interruptible: false

@@ -106,9 +106,9 @@ flowchart LR
         direction TB
         T[test] --> S[sonarcloud] --> SEC[security] --> B[build] --> SC[scan] --> P[publish]
     end
-    CI -->|pushes scanned images| REG[(GitLab Container Registry)]
-    REG -.->|"pull (blocked on the local node)"| K8S
-    LOCAL["Compose-built images<br/>scripts/k8s-load-images.sh"] -->|loaded into the node| K8S
+    CI -->|"pushes scanned images (main only)"| REG[(GitLab Container Registry)]
+    REG -.->|"node pull (blocked locally)"| K8S
+    REG -->|"host pull + load<br/>scripts/k8s-load-images.sh"| K8S
 
     subgraph K8S["Kubernetes namespace: ktebna"]
         direction LR
@@ -362,7 +362,7 @@ npm run test:coverage    # plus a coverage report in ktebna/coverage/
 
 ## CI/CD pipeline
 
-Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
+Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push; the `publish` stage runs on `main` only:
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
@@ -376,10 +376,10 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push:
 | `build` | `build-frontend` | Docker build (runs `npm run build`), saved as a job artifact (**not pushed**) | **Yes** |
 | `scan` | `trivy-backend-image` | Scans the saved image | **Yes**, on fixable HIGH/CRITICAL |
 | `scan` | `trivy-frontend-image` | Scans the saved image | **Yes**, on fixable HIGH/CRITICAL |
-| `publish` | `publish-backend` | Pushes the scanned image (`:<short-sha>` and `:latest`) | **Yes** |
-| `publish` | `publish-frontend` | Pushes the scanned image (`:<short-sha>` and `:latest`) | **Yes** |
+| `publish` | `publish-backend` | Pushes the scanned image (`:<short-sha>` and `:latest`), `main` only | **Yes** |
+| `publish` | `publish-frontend` | Pushes the scanned image (`:<short-sha>` and `:latest`), `main` only | **Yes** |
 
-Images reach the registry only after their own scan passes, and what gets pushed is the exact artifact that was scanned. Each Trivy job first prints a full report (all severities, never fails), then runs the gate: HIGH/CRITICAL findings that have a fixed version fail the job. CVEs with no fix yet stay visible in the report but don't block, since there is nothing to upgrade to.
+Images reach the registry only after their own scan passes, and what gets pushed is the exact artifact that was scanned. Only `main` publishes, because it is the only branch the blocking SonarCloud gate runs on: a push to any other branch can't replace `:latest` with code the gate never reviewed. Each Trivy job first prints a full report (all severities, never fails), then runs the gate: HIGH/CRITICAL findings that have a fixed version fail the job. CVEs with no fix yet stay visible in the report but don't block, since there is nothing to upgrade to.
 
 **Saving runner minutes.** The free plan allows 400 CI minutes a month, so the pipeline avoids waste: a push that only changes documentation (`*.md` outside the code folders) starts no pipeline at all; a pipeline for an older commit is cancelled when a newer push arrives (except the publish jobs, which are never cut off mid-push); and each cache is scoped to the jobs that use it: Maven for `backend-test`, npm for `frontend-test`, and one shared Trivy vulnerability database for the Trivy jobs.
 
@@ -447,9 +447,10 @@ Manifests live in `k8s/`:
 Secrets are created by hand, never committed; see [k8s/README.md](./k8s/README.md).
 
 ### Deploy
+The cluster runs the images CI published, never a local build: the same bytes the pipeline tested, scanned and pushed.
 ```bash
-docker compose build backend frontend
-scripts/k8s-load-images.sh <tag>    # e.g. the short commit SHA; must match the tag in the manifests
+docker login registry.gitlab.com     # once; a personal access token with read_registry
+scripts/k8s-load-images.sh <tag>     # 8-character short SHA of a green main pipeline; must match the manifests
 kubectl apply -f k8s/
 ```
 
@@ -460,9 +461,9 @@ kubectl port-forward svc/frontend -n ktebna 8081:80
 Then open **http://localhost:8081**. (The LoadBalancer's external IP is not directly reachable from the host in this local Docker Desktop setup, so port-forwarding is the supported access method.)
 
 ### Image references
-The local node can't pull from the GitLab registry (see [Known issues](#known-issues)), so images are **loaded straight into the node** instead: `scripts/k8s-load-images.sh` tags the Compose-built images as `ktebna/<app>:<tag>` and imports them into the node's container runtime. The manifests reference that exact tag with `imagePullPolicy: Never`, so a missing image fails loudly (`ErrImageNeverPull`) instead of falling back to the broken pull, and a `kubectl apply` never picks up unintended content. Use a new tag (the commit SHA) for every build, never `:latest`. See the **[Rollback runbook](#rollback-runbook)** below for how to switch versions safely.
+The local node can't pull from the GitLab registry (see [Known issues](#known-issues)), so images are **loaded straight into the node** instead: `scripts/k8s-load-images.sh` pulls the CI-published `registry.gitlab.com/saifexd-group/ktebna/<app>:<tag>` on the host (whose registry pull works) and imports it into the node's container runtime. The manifests reference that exact tag with `imagePullPolicy: Never`, so a missing image fails loudly (`ErrImageNeverPull`) instead of falling back to the broken pull, and a `kubectl apply` never picks up unintended content. Use a commit SHA tag, never `:latest`. See the **[Rollback runbook](#rollback-runbook)** below for how to switch versions safely.
 
-Once the registry pull works again, point `image:` back at `registry.gitlab.com/saifexd-group/ktebna/<app>:<short-sha>` (the tags CI publishes), set `imagePullPolicy: IfNotPresent`, and add a `gitlab-registry` pull secret through `imagePullSecrets`.
+The manifests already name the registry images, so once the node's own pull works again the only changes are `imagePullPolicy: IfNotPresent` and a `gitlab-registry` pull secret through `imagePullSecrets`.
 
 ---
 
@@ -511,7 +512,7 @@ With the current manifests (`imagePullPolicy: Never`), the equivalent error is *
 
 ## Known issues
 
-- **Kubernetes image pull failure (unresolved, investigated and parked):** the local Docker Desktop Kubernetes node cannot pull newly built images past a fixed point (consistent `short read: unexpected EOF` at an identical byte offset). Ruled out across two sessions: credentials (verified valid via direct registry auth checks), tag vs. digest reference, a full Docker Desktop restart, proxy interference (registry added to Docker Desktop's proxy bypass list, then retried), and a full Kubernetes cluster reset. A control pull of a public Docker Hub image succeeded on the same node, so the issue is scoped to this private registry's pull path, not general networking. **Worked around on 22 Sep 2026:** images are now loaded straight into the node (`scripts/k8s-load-images.sh`), so the cluster runs the current app again, verified end to end (sign-up, listing with photo upload, image served back through Nginx, Library API). Until then it had been stuck on August images whose frontend called `localhost:8080` and had no `/api` proxy.
+- **Kubernetes image pull failure (unresolved, investigated and parked):** the local Docker Desktop Kubernetes node cannot pull newly built images past a fixed point (consistent `short read: unexpected EOF` at an identical byte offset). Ruled out across two sessions: credentials (verified valid via direct registry auth checks), tag vs. digest reference, a full Docker Desktop restart, proxy interference (registry added to Docker Desktop's proxy bypass list, then retried), and a full Kubernetes cluster reset. A control pull of a public Docker Hub image succeeded on the same node, so the issue is scoped to this private registry's pull path, not general networking. **Worked around on 22 Sep 2026:** images are now loaded straight into the node (`scripts/k8s-load-images.sh`, which since 24 Sep 2026 pulls the CI-published images on the host rather than using local builds), so the cluster runs the current app again, verified end to end (sign-up, listing with photo upload, image served back through Nginx, Library API). Until then it had been stuck on August images whose frontend called `localhost:8080` and had no `/api` proxy.
 - **Monitoring** is implemented and verified in Docker Compose only (metrics scraping, dashboard auto-provisioning, live panel data). Not deployed to Kubernetes yet (the cluster runs only MySQL, backend and frontend).
 - **Maps need a key:** without `VITE_GOOGLE_MAPS_API_KEY` the map picker and book-page maps are hidden.
 - **Email notifications can be slow to arrive:** the mailer runs on a free host that sleeps when idle and can take up to a minute to wake. Chat messages are unaffected, because the email is sent in the background.

@@ -31,11 +31,11 @@ To rotate a value later, re-create the Secret with `--dry-run=client -o yaml | k
 
 ## 2. Load the images
 
-The local node can't pull from the GitLab registry (see the main README's Known issues), so the images built by Docker Compose are copied straight into the node:
+The cluster runs the images CI built, scanned and published on `main`. The local node can't pull from the GitLab registry itself (see the main README's Known issues), so the host pulls them and copies them into the node:
 
 ```sh
-docker compose build backend frontend
-scripts/k8s-load-images.sh <tag>     # e.g. the short commit SHA
+docker login registry.gitlab.com     # once; a personal access token with read_registry
+scripts/k8s-load-images.sh <tag>     # 8-character short SHA of a green main pipeline
 ```
 
 The `image:` tag in `backend.yaml` and `frontend.yaml` must match `<tag>`. They use `imagePullPolicy: Never`, so a tag that was never loaded fails with `ErrImageNeverPull` instead of trying the broken registry pull.
