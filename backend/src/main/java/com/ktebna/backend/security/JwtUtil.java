@@ -45,16 +45,39 @@ public class JwtUtil {
         return key;
     }
 
+    // Claim holding the user's token version when the token was issued; see User.tokenVersion.
+    static final String VERSION_CLAIM = "ver";
+
     public String generateToken(Long userId, String email) {
+        return generateToken(userId, email, 0);
+    }
+
+    public String generateToken(Long userId, String email, int tokenVersion) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("email", email)
+                .claim(VERSION_CLAIM, tokenVersion)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(getKey())
                 .compact();
+    }
+
+    /** The verified claims, or null when the token is forged, expired or malformed. */
+    public Claims parse(String token) {
+        try {
+            return Jwts.parser().verifyWith(getKey()).build().parseSignedClaims(token).getPayload();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Tokens issued before versions existed carry none; they count as version 0.
+    public static int versionOf(Claims claims) {
+        Integer version = claims.get(VERSION_CLAIM, Integer.class);
+        return version == null ? 0 : version;
     }
 
     public Long extractUserId(String token) {

@@ -82,7 +82,7 @@ public class PostController {
         if (currentUser == null) {
             throw new ApiException("Authentication required", HttpStatus.UNAUTHORIZED);
         }
-        Page<Post> result = postRepository.findByUserIdOrderByCreatedAtDesc(
+        Page<Post> result = postRepository.findByUserIdOrderByCreatedAtDescIdDesc(
                 currentUser.getId(), Paging.of(page, size));
         return Map.of(
                 "data", result.getContent().stream().map(this::toResponse).toList(),
@@ -123,10 +123,14 @@ public class PostController {
         applyPickup(post, form.getPickupLat(), form.getPickupLng(), form.getPickupSpot());
 
         MultipartFile image = form.getImage();
+        String replaced = null;
         if (image != null && !image.isEmpty()) {
+            replaced = post.getBookImage();
             post.setBookImage(fileStorageService.store(image));
         }
-        return toResponse(postRepository.save(post));
+        PostResponse saved = toResponse(postRepository.save(post));
+        fileStorageService.deleteLater(replaced);
+        return saved;
     }
 
     @PatchMapping("/{id}/visibility")
@@ -156,6 +160,7 @@ public class PostController {
         // Other readers' bookmarks reference the post; drop them first.
         savedPostRepository.deleteAllForPost(post.getId());
         postRepository.delete(post);
+        fileStorageService.deleteLater(post.getBookImage());
     }
 
     private Post getOwnedPost(User currentUser, Long id) {

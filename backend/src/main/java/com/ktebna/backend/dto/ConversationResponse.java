@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -14,7 +14,7 @@ public class ConversationResponse {
     private String conversationTopic;
     private String lastMessageContent;
     private Long lastMessageSender;
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
     private UserDto firstUser;
     private UserDto secondUser;
 }

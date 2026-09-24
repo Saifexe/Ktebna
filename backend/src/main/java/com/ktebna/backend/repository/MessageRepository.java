@@ -8,7 +8,13 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
-    List<Message> findByConversationIdOrderByCreatedAtAsc(Long conversationId);
+    // Ordered by id, the order messages were saved in: two sent within the same
+    // instant still come back in the right order, and the conversation_id index
+    // (which InnoDB extends with the id) serves it without a sort.
+    List<Message> findByConversationIdOrderByIdAsc(Long conversationId);
+
+    // Only what an open chat hasn't seen yet, for its polling.
+    List<Message> findByConversationIdAndIdGreaterThanOrderByIdAsc(Long conversationId, Long afterId);
 
     // Every message in any conversation the user takes part in
     @Modifying

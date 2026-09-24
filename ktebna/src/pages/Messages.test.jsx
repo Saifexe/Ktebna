@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "react-toastify";
 import { getConversationWith, getMessages, getMyConversations, sendMessage } from "../chat/chatService";
@@ -82,6 +82,20 @@ describe("Messages", () => {
     expect(await screen.findByText("Yes, it is.")).toBeInTheDocument();
     expect(getMessages).toHaveBeenCalledWith(11);
     await waitFor(() => expect(markRead).toHaveBeenCalledWith(11));
+  });
+
+  it("refreshes an open thread by fetching only the messages after the last one shown", async () => {
+    const newer = { id: 999, userId: 5, messageContent: "Saturday works for me", createdAt: "2026-09-23T09:20:00Z" };
+    getMessages.mockImplementation(async (id, afterId) => (afterId ? [newer] : thread));
+    const { client } = open("/messages?with=5", {});
+    expect(await screen.findByText("Yes, it is.")).toBeInTheDocument();
+
+    // What the 5-second poll does.
+    await act(() => client.refetchQueries({ queryKey: ["messages", 11] }));
+
+    expect(getMessages).toHaveBeenLastCalledWith(11, thread[thread.length - 1].id);
+    expect(await screen.findByText("Saturday works for me")).toBeInTheDocument();
+    expect(screen.getByText("Yes, it is.")).toBeInTheDocument();
   });
 
   it("sends a reply in the open thread", async () => {

@@ -2,6 +2,7 @@ package com.ktebna.backend.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ktebna.backend.TestImages;
 import com.ktebna.backend.service.EmailNotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -63,8 +64,8 @@ public abstract class ApiTestBase {
         return prefix + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
-    /** Smallest byte sequence the upload check accepts as a JPEG. */
-    protected static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10, 'J', 'F', 'I', 'F', 0, 1};
+    /** A real (tiny) JPEG: uploads are decoded and re-encoded, so a bare header is refused. */
+    protected static final byte[] JPEG = TestImages.jpeg(8, 8);
 
     protected JsonNode body(ResultActions result) throws Exception {
         return json.readTree(result.andReturn().getResponse().getContentAsString());

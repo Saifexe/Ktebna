@@ -14,6 +14,7 @@ import {
   LibraryBig,
   LogOut,
   Mail,
+  MonitorSmartphone,
   Settings,
   Trash2,
   UserX,
@@ -48,7 +49,7 @@ const Metric = ({ icon, n, label }) => {
 
 const Profile = () => {
   const { t, i18n } = useTranslation();
-  const { user, logout, refreshUser } = useContext(AuthContext);
+  const { user, logout, logoutEverywhere, refreshUser } = useContext(AuthContext);
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "saved" ? "saved" : "listings";
@@ -88,7 +89,7 @@ const Profile = () => {
   const publicCount = posts.filter((p) => p.isPublic).length;
 
   const { data: conversations = [] } = useQuery({
-    queryKey: ["conversations"],
+    queryKey: ["conversations", user.id],
     queryFn: getMyConversations,
   });
 
@@ -321,6 +322,20 @@ const Profile = () => {
                   className="flex w-full items-center gap-2 px-4 py-2.5 hover:bg-muted"
                 >
                   <Camera className="size-4" /> {t("profile.changePhoto")}
+                </button>
+                <button
+                  onClick={async () => {
+                    setSettingsOpen(false);
+                    try {
+                      await logoutEverywhere();
+                      toast.success(t("profile.loggedOutEverywhere"));
+                    } catch {
+                      toast.error(t("sell.error"));
+                    }
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 hover:bg-muted"
+                >
+                  <MonitorSmartphone className="size-4" /> {t("profile.logoutEverywhere")}
                 </button>
                 <button
                   onClick={() => {

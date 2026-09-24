@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -27,6 +28,25 @@ class MessagingApiTest extends ApiTestBase {
 
     private long unreadTotal(Account account) throws Exception {
         return body(mvc.perform(as(account, get("/api/conversations/unread")))).path("total").asLong();
+    }
+
+    @Test
+    void messagesComeBackInSendingOrderAndPollingFetchesOnlyNewOnes() throws Exception {
+        Account a = register("Order");
+        Account b = register("Order");
+        long conversationId = send(a, b, null, "one").path("conversation").path("id").asLong();
+        long second = send(b, a, null, "two").path("message").path("id").asLong();
+        send(a, b, null, "three");
+        send(a, b, null, "four");
+
+        mvc.perform(as(a, get("/api/conversations/" + conversationId + "/messages")))
+                .andExpect(jsonPath("$[*].messageContent").value(contains("one", "two", "three", "four")));
+        mvc.perform(as(b, get("/api/conversations/" + conversationId + "/messages").param("afterId", String.valueOf(second))))
+                .andExpect(jsonPath("$[*].messageContent").value(contains("three", "four")));
+        // afterId doesn't get around the participant check.
+        Account outsider = register("Outsider");
+        mvc.perform(as(outsider, get("/api/conversations/" + conversationId + "/messages").param("afterId", "0")))
+                .andExpect(status().isForbidden());
     }
 
     @Test

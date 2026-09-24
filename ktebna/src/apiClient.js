@@ -4,26 +4,32 @@ import axios from "axios";
 // VITE_API_URL=http://localhost:8080
 const API_URL = import.meta.env.VITE_API_URL || "";
 
+export const TOKEN_KEY = "ktebna_token";
+// Fired when the backend rejects our token; AuthProvider signs out on it.
+export const SESSION_EXPIRED_EVENT = "ktebna:session-expired";
+
 export const apiClient = axios.create({
   baseURL: API_URL,
 });
 
 // Attach the JWT (if present) to every outgoing request.
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("ktebna_token");
+  const token = localStorage.getItem(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// If the backend says the token is invalid/expired, clear it so the app
-// falls back to the logged-out state instead of looping on 401s.
+// A 401 on a request that carried our token means the token is no longer
+// valid (expired, or revoked by "log out everywhere"). A 401 without one,
+// such as a wrong password at login, is not about the session.
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
-      localStorage.removeItem("ktebna_token");
+    if (error?.response?.status === 401 && error.config?.headers?.Authorization) {
+      localStorage.removeItem(TOKEN_KEY);
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
     return Promise.reject(error);
   },

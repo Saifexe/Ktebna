@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 
+import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,6 +38,18 @@ class ListingApiTest extends ApiTestBase {
                 .andExpect(jsonPath("$.pickupSpot").value("Sousse medina"))
                 .andExpect(jsonPath("$.bookImage", endsWith(".jpg")))
                 .andExpect(jsonPath("$.isPublic").value(true));
+    }
+
+    @Test
+    void timesAreSentAsUtcInstantsSoBrowsersShowTheirLocalTime() throws Exception {
+        Account seller = register("Clock");
+        Instant before = Instant.now().minusSeconds(1);
+        JsonNode post = createPost(seller, unique("Clock"), true, Map.of());
+
+        // "2026-09-24T11:15:23.123456Z": without the Z, a browser in Tunis reads it as local time, an hour off.
+        String createdAt = post.path("createdAt").asText();
+        assertThat(createdAt).endsWith("Z");
+        assertThat(Instant.parse(createdAt)).isBetween(before, Instant.now().plusSeconds(1));
     }
 
     @Test

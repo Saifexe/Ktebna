@@ -31,7 +31,7 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user = userRepository.save(user);
 
-        String token = jwtUtil.generateToken(user.getId(), user.getEmail());
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getTokenVersion());
         return new AuthResponse(token, toDto(user));
     }
 
@@ -46,7 +46,7 @@ public class AuthController {
             throw new ApiException("Invalid email or password", HttpStatus.UNAUTHORIZED);
         }
 
-        String token = jwtUtil.generateToken(user.getId(), user.getEmail());
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getTokenVersion());
         return new AuthResponse(token, toDto(user));
     }
 
@@ -56,6 +56,15 @@ public class AuthController {
             throw new ApiException("Not authenticated", HttpStatus.UNAUTHORIZED);
         }
         return toDto(user);
+    }
+
+    // Revokes every token the user holds, on every device, this one included.
+    @PostMapping("/logout-everywhere")
+    public void logoutEverywhere(@org.springframework.security.core.annotation.AuthenticationPrincipal User user) {
+        if (user == null) {
+            throw new ApiException("Not authenticated", HttpStatus.UNAUTHORIZED);
+        }
+        userRepository.incrementTokenVersion(user.getId());
     }
 
     private volatile String dummyHash;

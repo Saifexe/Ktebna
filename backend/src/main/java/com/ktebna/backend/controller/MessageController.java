@@ -16,7 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,14 +32,19 @@ public class MessageController {
     private final UserRepository userRepository;
     private final EmailNotificationService emailNotificationService;
 
+    // The whole thread, or with ?afterId= only the messages newer than that one.
     @GetMapping("/conversations/{conversationId}/messages")
     public List<MessageResponse> getMessages(@AuthenticationPrincipal User currentUser,
-                                              @PathVariable Long conversationId) {
+                                              @PathVariable Long conversationId,
+                                              @RequestParam(required = false) Long afterId) {
         Conversation conv = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ApiException("Conversation not found", HttpStatus.NOT_FOUND));
         ConversationController.assertParticipant(currentUser, conv);
 
-        return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
+        List<Message> messages = afterId == null
+                ? messageRepository.findByConversationIdOrderByIdAsc(conversationId)
+                : messageRepository.findByConversationIdAndIdGreaterThanOrderByIdAsc(conversationId, afterId);
+        return messages.stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -80,7 +85,7 @@ public class MessageController {
 
         conversation.setLastMessageContent(preview(req.getMessageContent()));
         conversation.setLastMessageSender(currentUser.getId());
-        conversation.setUpdatedAt(LocalDateTime.now());
+        conversation.setUpdatedAt(Instant.now());
         // Writing a message means you've seen everything before it.
         conversation.markReadUpTo(currentUser.getId(), message.getId());
         conversation = conversationRepository.save(conversation);

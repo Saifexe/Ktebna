@@ -86,9 +86,11 @@ public class UserController {
     @PostMapping(value = "/account/profile-picture", consumes = "multipart/form-data")
     public UserDto updateProfilePicture(@AuthenticationPrincipal User currentUser,
                                          @RequestParam("file") MultipartFile file) {
+        String previous = currentUser.getProfilePicture();
         String url = fileStorageService.store(file);
         currentUser.setProfilePicture(url);
         User saved = userRepository.save(currentUser);
+        fileStorageService.deleteLater(previous);
         return toDto(saved);
     }
 
@@ -97,6 +99,10 @@ public class UserController {
     @Transactional
     public void deleteAccount(@AuthenticationPrincipal User currentUser) {
         Long userId = currentUser.getId();
+        // Their photos go too (after the commit): covers, shared-book covers, avatar.
+        postRepository.findImagesByOwner(userId).forEach(fileStorageService::deleteLater);
+        libraryBookRepository.findCoversByOwner(userId).forEach(fileStorageService::deleteLater);
+        fileStorageService.deleteLater(currentUser.getProfilePicture());
         savedPostRepository.deleteAllInvolvingUser(userId);
         messageRepository.deleteAllInvolvingUser(userId);
         conversationRepository.deleteAllInvolvingUser(userId);

@@ -1,6 +1,6 @@
 // Thin wrapper around the Spring Boot messaging endpoints. The backend
-// (MessageController) handles get-or-create conversation, the 2-message
-// limit, and the email notification in a single call - see POST /api/messages.
+// (MessageController) handles get-or-create conversation and the email
+// notification in a single call - see POST /api/messages.
 import apiClient from "../apiClient";
 
 export const getConversationWith = async (otherUserId) => {
@@ -8,11 +8,11 @@ export const getConversationWith = async (otherUserId) => {
   return data; // ConversationResponse | null
 };
 
-export const getMessages = async (conversationId) => {
+// The whole thread, oldest first; with afterId, only the messages newer than it.
+export const getMessages = async (conversationId, afterId) => {
   if (!conversationId) return [];
-  const { data } = await apiClient.get(
-    `/api/conversations/${conversationId}/messages`,
-  );
+  const url = `/api/conversations/${conversationId}/messages`;
+  const { data } = afterId ? await apiClient.get(url, { params: { afterId } }) : await apiClient.get(url);
   return data; // MessageResponse[]
 };
 

@@ -3,11 +3,11 @@ package com.ktebna.backend.dto;
 import com.ktebna.backend.entity.LibraryBook;
 import com.ktebna.backend.entity.User;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record LibraryBookResponse(Long id, String title, String author, String language, String category,
                                   String description, String coverImage, String pdfUrl,
-                                  LocalDateTime createdAt, UserDto user) {
+                                  Instant createdAt, UserDto user) {
 
     public static LibraryBookResponse from(LibraryBook book) {
         User u = book.getUser();

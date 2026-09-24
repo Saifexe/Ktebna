@@ -2,6 +2,7 @@ package com.ktebna.backend.security;
 
 import com.ktebna.backend.entity.User;
 import com.ktebna.backend.repository.UserRepository;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,11 +32,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
 
         if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-            if (jwtUtil.isTokenValid(token)) {
-                Long userId = jwtUtil.extractUserId(token);
-                Optional<User> userOpt = userRepository.findById(userId);
-                if (userOpt.isPresent() && SecurityContextHolder.getContext().getAuthentication() == null) {
+            Claims claims = jwtUtil.parse(header.substring(7));
+            if (claims != null) {
+                Optional<User> userOpt = userRepository.findById(Long.valueOf(claims.getSubject()));
+                // A token issued before the user's latest "log out everywhere" is revoked.
+                boolean current = userOpt.isPresent()
+                        && JwtUtil.versionOf(claims) == userOpt.get().getTokenVersion();
+                if (current && SecurityContextHolder.getContext().getAuthentication() == null) {
                     User user = userOpt.get();
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());

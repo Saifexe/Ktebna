@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -65,12 +66,14 @@ public class LibraryController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public void delete(@AuthenticationPrincipal User currentUser, @PathVariable Long id) {
         LibraryBook book = find(id);
         if (!book.getUser().getId().equals(currentUser.getId())) {
             throw new ApiException("You did not share this book", HttpStatus.FORBIDDEN);
         }
         libraryBookRepository.delete(book);
+        fileStorageService.deleteLater(book.getCoverImage());
     }
 
     private LibraryBook find(Long id) {

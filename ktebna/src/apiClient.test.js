@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import apiClient, { API_BASE_URL, mediaUrl } from "./apiClient";
+import { describe, expect, it, vi } from "vitest";
+import apiClient, { API_BASE_URL, SESSION_EXPIRED_EVENT, mediaUrl } from "./apiClient";
 
 // The interceptors are the first registered handlers on the shared client.
 const onRequest = apiClient.interceptors.request.handlers[0].fulfilled;
@@ -19,11 +19,25 @@ describe("request interceptor", () => {
 });
 
 describe("response interceptor", () => {
-  it("forgets an expired token when the backend answers 401", async () => {
+  it("forgets a rejected token and announces the expired session", async () => {
     localStorage.setItem("ktebna_token", "expired");
-    const error = { response: { status: 401 } };
+    const expired = vi.fn();
+    window.addEventListener(SESSION_EXPIRED_EVENT, expired);
+    const error = { response: { status: 401 }, config: { headers: { Authorization: "Bearer expired" } } };
     await expect(onError(error)).rejects.toBe(error);
     expect(localStorage.getItem("ktebna_token")).toBeNull();
+    expect(expired).toHaveBeenCalledTimes(1);
+    window.removeEventListener(SESSION_EXPIRED_EVENT, expired);
+  });
+
+  it("ignores a 401 on a request sent without a token, such as a wrong password", async () => {
+    localStorage.setItem("ktebna_token", "valid");
+    const expired = vi.fn();
+    window.addEventListener(SESSION_EXPIRED_EVENT, expired);
+    await expect(onError({ response: { status: 401 }, config: { headers: {} } })).rejects.toBeTruthy();
+    expect(localStorage.getItem("ktebna_token")).toBe("valid");
+    expect(expired).not.toHaveBeenCalled();
+    window.removeEventListener(SESSION_EXPIRED_EVENT, expired);
   });
 
   it("keeps the token for other errors, such as 403", async () => {

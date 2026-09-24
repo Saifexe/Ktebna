@@ -94,7 +94,7 @@ const Messages = () => {
   const endRef = useRef(null);
 
   const { data: conversations = [], isLoading } = useQuery({
-    queryKey: ["conversations"],
+    queryKey: ["conversations", user.id],
     queryFn: getMyConversations,
     refetchInterval: 15000,
   });
@@ -115,9 +115,19 @@ const Messages = () => {
   else if (withId) other = { id: withId, name: params.get("name") || t("chatDrawer.user") };
   const topic = conversation?.conversationTopic || params.get("book") || "";
 
+  // The first load fetches the thread; every poll after that asks only for
+  // messages newer than the last one on screen and appends them.
   const { data: messages = [], isLoading: loadingMessages } = useQuery({
     queryKey: ["messages", conversation?.id],
-    queryFn: () => getMessages(conversation.id),
+    queryFn: async () => {
+      const shown = queryClient.getQueryData(["messages", conversation.id]);
+      const lastId = shown?.length ? shown[shown.length - 1].id : null;
+      if (!lastId) return getMessages(conversation.id);
+      const fresh = await getMessages(conversation.id, lastId);
+      const known = new Set(shown.map((m) => m.id));
+      const added = fresh.filter((m) => !known.has(m.id));
+      return added.length ? [...shown, ...added] : shown;
+    },
     enabled: Boolean(conversation?.id),
     refetchInterval: 5000,
   });

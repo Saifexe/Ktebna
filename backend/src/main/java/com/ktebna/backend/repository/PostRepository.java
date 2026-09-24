@@ -11,14 +11,17 @@ import org.springframework.data.repository.query.Param;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
 
-    Page<Post> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    Page<Post> findByUserIdOrderByCreatedAtDescIdDesc(Long userId, Pageable pageable);
 
     // A reader's public profile: what the catalog would show of them.
     @Query("select p from Post p where p.user.id = :userId and p.isPublic = true " +
-            "and p.status <> com.ktebna.backend.entity.PostStatus.SOLD order by p.createdAt desc")
+            "and p.status <> com.ktebna.backend.entity.PostStatus.SOLD order by p.createdAt desc, p.id desc")
     Page<Post> findPublicByOwner(@Param("userId") Long userId, Pageable pageable);
 
     long countByUserIdAndStatus(Long userId, PostStatus status);
+
+    @Query("select p.bookImage from Post p where p.user.id = :userId and p.bookImage is not null")
+    java.util.List<String> findImagesByOwner(@Param("userId") Long userId);
 
     @Modifying
     @Query("delete from Post p where p.user.id = :userId")
@@ -33,7 +36,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "and (:location is null or p.bookLocation = :location) " +
             "and (:search is null or lower(p.bookName) like lower(concat('%', :search, '%')) " +
             "     or lower(p.bookAuthor) like lower(concat('%', :search, '%'))) " +
-            "order by p.createdAt desc")
+            "order by p.createdAt desc, p.id desc")
     Page<Post> findPublicFeed(@Param("category") String category,
                               @Param("dealType") String dealType,
                               @Param("location") String location,

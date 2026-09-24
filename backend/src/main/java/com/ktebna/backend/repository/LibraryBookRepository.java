@@ -16,12 +16,15 @@ public interface LibraryBookRepository extends JpaRepository<LibraryBook, Long> 
             "     or lower(b.author) like lower(concat('%', :search, '%')))";
 
     // join fetch: one query for the page, not one extra per sharer
-    @Query(value = "select b from LibraryBook b join fetch b.user where " + FILTERS + " order by b.createdAt desc",
+    @Query(value = "select b from LibraryBook b join fetch b.user where " + FILTERS + " order by b.createdAt desc, b.id desc",
             countQuery = "select count(b) from LibraryBook b where " + FILTERS)
     Page<LibraryBook> search(@Param("language") String language,
                              @Param("category") String category,
                              @Param("search") String search,
                              Pageable pageable);
+
+    @Query("select b.coverImage from LibraryBook b where b.user.id = :userId and b.coverImage is not null")
+    java.util.List<String> findCoversByOwner(@Param("userId") Long userId);
 
     @Modifying
     @Query("delete from LibraryBook b where b.user.id = :userId")

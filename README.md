@@ -293,6 +293,7 @@ All endpoints are under `/api`. **Auth** means a valid `Authorization: Bearer <j
 | `POST` | `/auth/register` | – | Create account; returns `{ token, user }` |
 | `POST` | `/auth/login` | – | Log in; returns `{ token, user }` |
 | `GET` | `/auth/me` | ✓ | Current user |
+| `POST` | `/auth/logout-everywhere` | ✓ | Revokes every login token the account holds, on every device |
 | `GET` | `/posts` | – | Public feed. Query: `search`, `category`, `dealType`, `location`, `page`, `size` |
 | `GET` | `/posts/{id}` | – | One listing |
 | `GET` | `/posts/me` | ✓ | Your listings (public and hidden) |
@@ -308,7 +309,7 @@ All endpoints are under `/api`. **Auth** means a valid `Authorization: Bearer <j
 | `GET` | `/conversations/with/{userId}` | ✓ | Your conversation with a user, if any |
 | `GET` | `/conversations/unread` | ✓ | `{ total, conversations: [{ conversationId, count, otherUser, … }] }` |
 | `POST` | `/conversations/{id}/read` | ✓ participant | Mark a conversation read |
-| `GET` | `/conversations/{id}/messages` | ✓ participant | Messages, oldest first |
+| `GET` | `/conversations/{id}/messages` | ✓ participant | Messages in sending order; `?afterId=` returns only newer ones (what an open chat polls) |
 | `POST` | `/messages` | ✓ | Body `{ otherUserId, bookName?, messageContent }`; creates the conversation if needed |
 | `PUT` | `/account/name` | ✓ | Rename |
 | `GET` | `/users/{id}/profile` | – | Public profile: name, photo, member since, books on offer, completed deals (never the email) |
@@ -324,13 +325,13 @@ Hidden listings return `404` to everyone except their owner. Email addresses are
 
 **Listing fields** (multipart): `bookName` (required), `bookAuthor`, `bookCategory`, `bookCondition` (`likeNew` · `gentlyRead` · `wellLoved` · `collectors`), `bookDealType` (`sell` · `exchange` · `donate`), `bookDeal` (price or swap wish), `bookDescription`, `bookLocation` (city), `pickupLat`, `pickupLng`, `pickupSpot`, `isPublic`, `image`.
 
-Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by file name), up to **8 MB** (enforced by both Nginx and Spring). Uploaded images are served from `/uploads/**`; health and metrics from `/actuator/health` and `/actuator/prometheus`.
+Images must be real JPEG, PNG, GIF or WebP files (checked by content, not by file name), up to **8 MB** (enforced by both Nginx and Spring). Every upload is decoded and saved as a new file: phone photos are turned upright, shrunk to at most 1600 px on the longest side, and stripped of EXIF metadata (GPS position, camera, date). Opaque images are stored as JPEG, transparent ones as PNG. All times in API responses are UTC instants ending in `Z` (e.g. `2026-09-24T11:52:31.649Z`), so browsers show them in the reader's own time zone. Uploaded images are served from `/uploads/**`; health and metrics from `/actuator/health` and `/actuator/prometheus`.
 
 ---
 
 ## Testing
 
-The backend has **89 automated tests** with **94.9% line coverage**:
+The backend has **121 automated tests** with **95.3% line coverage**:
 
 | Layer | What it covers | How |
 |---|---|---|
@@ -346,7 +347,7 @@ cd backend
 
 Coverage is written to `backend/target/site/jacoco/index.html`. In CI, GitLab shows the test results in the pipeline's **Tests** tab and the coverage percentage on the job; SonarCloud reads the same JaCoCo report.
 
-The frontend has **170 tests** (Vitest + React Testing Library, in a simulated browser) covering 81% of its lines:
+The frontend has **176 tests** (Vitest + React Testing Library, in a simulated browser) covering 81% of its lines:
 
 - **Logic:** deal labels, listing statuses, dates, map links, the API client's token handling, session restore and login/logout, the chat service, and a check that French and Arabic translate every English string, category and city.
 - **Components:** the header (search, language menu, unread badge), book cards, covers, pagination, the saved-books shelf, the login form, the login prompt and the route guard.
@@ -366,8 +367,8 @@ Defined in [`.gitlab-ci.yml`](./.gitlab-ci.yml). Six stages run on every push; t
 
 | Stage | Job | What it does | Blocking? |
 |---|---|---|---|
-| `test` | `backend-test` | 89 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
-| `test` | `frontend-test` | `npm run lint` (ESLint), then 170 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
+| `test` | `backend-test` | 121 unit + integration tests against MySQL 8 (Testcontainers on Docker-in-Docker); publishes JUnit results and JaCoCo coverage | **Yes** |
+| `test` | `frontend-test` | `npm run lint` (ESLint), then 176 Vitest tests; publishes JUnit results and lcov coverage | **Yes** |
 | `sonarcloud` | `sonarcloud-check` | SonarCloud SAST (on `main` only); waits for the quality gate verdict | **Yes**, when the quality gate fails |
 | `security` | `gitleaks` | Secret scan of the working tree **and full git history** | **Yes** |
 | `security` | `trivy-fs-backend` | Maven dependency vulnerabilities | **Yes**, on fixable HIGH/CRITICAL |

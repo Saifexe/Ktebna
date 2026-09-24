@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 // A free-to-read book in the Library: a cover uploaded to the platform plus a
 // link to a PDF that is legally free to read (public domain or a publisher's
@@ -51,10 +51,10 @@ public class LibraryBook {
     private String pdfUrl;
 
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 }

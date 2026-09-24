@@ -25,6 +25,11 @@ describe("chatService", () => {
     expect(await getUnread()).toBe("GET /api/conversations/unread");
   });
 
+  it("asks only for newer messages when given the last one seen", async () => {
+    await getMessages(11, 40);
+    expect(apiClient.get).toHaveBeenCalledWith("/api/conversations/11/messages", { params: { afterId: 40 } });
+  });
+
   it("returns no messages for a chat that doesn't exist yet", async () => {
     expect(await getMessages(null)).toEqual([]);
     expect(apiClient.get).not.toHaveBeenCalled();

@@ -37,6 +37,21 @@ Leaked secrets block unconditionally: a leaked secret needs immediate rotation, 
 
 ## Vulnerability remediation log
 
+### 24 Sep 2026: Photo metadata, delivery chain and time zones (fixed)
+
+**Detected by:** a full-repository audit, then a local run of the pipeline's Trivy gate before pushing.
+
+| Finding | Risk | Fix |
+|---|---|---|
+| Uploads stored byte-for-byte, EXIF included | A phone photo of a book taken at home published the home's GPS position, despite the pickup pin being meant for a public place | Every upload is decoded and re-encoded (EXIF orientation applied first, so photos stay upright), shrunk to 1600 px; a 2.7 MB phone photo became 438 KB with no EXIF left |
+| Images published from any branch | A push to a branch the SonarCloud gate never ran on could replace `:latest` | `publish-*` jobs run on `main` only |
+| Kubernetes ran local Compose builds | The pipeline's scans didn't cover what was deployed | `scripts/k8s-load-images.sh` pulls the CI-published image by commit SHA; manifests name the registry images |
+| No way to cancel a login: tokens stayed valid for 7 days, logout only forgot the local copy | A stolen token kept working, and a compromised account couldn't be locked out | Each token carries the user's `token_version`; "Log out of all devices" (`POST /api/auth/logout-everywhere`) raises it, and an operator can too (`UPDATE users SET token_version = token_version + 1 WHERE id = ?`). Older tokens count as version 0, so the rollout signed nobody out |
+| Deleted or replaced photos stayed on disk (13 of 30 files were orphans) | A deleted listing's or account's photos stayed publicly reachable at their old URL | Files are deleted after the database change commits, for replaced covers and avatars, deleted listings, shared books and accounts |
+| The frontend dropped the login on any `/auth/me` error, and a 401 elsewhere left a signed-in page | A backend restart signed everyone out; an expired session looked signed in while every action failed | The token is dropped only on a 401 for a request that carried it; other errors retry. The query cache is cleared on every sign-in and sign-out, so the next person on a shared browser never sees the previous account's inbox |
+| libexpat CVE-2026-93990 (HIGH, fixed upstream) in the backend base image | Would have failed the next pipeline and nightly scan | `apk upgrade` in the backend runtime stage, as the frontend image already did; both images pass the gate locally |
+| Times sent without a time zone | Browsers in Tunisia (UTC+1) showed every time an hour off when the backend ran in Docker/Kubernetes (UTC) | Entities use `Instant`, stored in UTC via `hibernate.jdbc.time_zone`, sent with a trailing `Z` |
+
 ### 23 Sep 2026: SonarCloud security and reliability findings (fixed)
 
 **Detected by:** SonarCloud (20 open issues with security or reliability impact, all medium severity). Every one was fixed in code; none was dismissed as a false positive.
@@ -153,7 +168,7 @@ A full audit of the repository, its history, Docker Compose, the Kubernetes mani
 | Errors | Clients get generic messages; details are logged server-side. |
 | Account deletion | Deletes the user's bookmarks, bookmarks others made on their posts, messages and conversations they took part in, their posts, then the user, in one transaction (fixed in v2; it previously failed on foreign keys). |
 | Input limits | Every text field is length-limited to its database column (a longer value is a `400`); page sizes are capped at 50. |
-| Uploads | Only real JPEG/PNG/GIF/WebP files (checked by magic bytes), stored under random UUID names with an extension derived from the content. Size is capped at 8 MB by both Nginx and Spring. Stored as relative `/uploads/…` paths and served same-origin through Nginx. |
+| Uploads | Only real JPEG/PNG/GIF/WebP files (checked by magic bytes, then fully decoded), re-encoded under random UUID names: no EXIF metadata (GPS position included) or other embedded content survives, and images declaring more than 64 megapixels are refused before decoding. Size is capped at 8 MB by both Nginx and Spring. Stored as relative `/uploads/…` paths and served same-origin through Nginx. |
 | Library links | Shared PDFs are external links: only `http(s)` URLs are accepted (no `javascript:` or `data:`), they open in a new tab with `noopener,noreferrer`, only the sharer can remove a book, and sharing is rate-limited per user. The share form asks for public-domain or publisher-provided books only. |
 | Maps | Pickup pins are optional and user-chosen; the UI tells sellers to pick a public meeting place and never a home address. Coordinates outside valid ranges are discarded server-side. |
 | Outbound calls | The mailer is called asynchronously with 10 s connect / 90 s read timeouts, so a slow or unreachable mailer can't tie up request threads or delay chat messages. |

@@ -8,7 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -31,7 +31,7 @@ public class PostResponse {
     @JsonProperty("isPublic")
     private boolean isPublic;
     private PostStatus status;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     private UserDto user;
 
     public static PostResponse from(Post post) {

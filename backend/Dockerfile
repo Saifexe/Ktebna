@@ -14,8 +14,11 @@ RUN java -Djarmode=tools -jar target/backend.jar extract --layers --launcher --d
 # Alpine JRE: about half the size of the Ubuntu-based one.
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-# Run as an unprivileged user; only the uploads directory is writable by it.
-RUN addgroup -S -g 10001 app \
+# Pull Alpine security fixes released after the base image was built
+# (e.g. libexpat CVE-2026-93990, fixed in 2.8.5-r0), as the frontend image does.
+# Then run as an unprivileged user; only the uploads directory is writable by it.
+RUN apk upgrade --no-cache \
+    && addgroup -S -g 10001 app \
     && adduser -S -D -H -u 10001 -G app -s /sbin/nologin app \
     && mkdir -p /app/uploads \
     && chown app:app /app/uploads
