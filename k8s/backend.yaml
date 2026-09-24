@@ -42,7 +42,7 @@ spec:
           # scripts/k8s-load-images.sh <tag> pulls it on the host and loads it in.
           # `Never` makes a missing image fail loudly instead of falling back to
           # the broken registry pull.
-          image: registry.gitlab.com/saifexd-group/ktebna/backend:6586d1f0
+          image: registry.gitlab.com/saifexd-group/ktebna/backend:bccadd04
           imagePullPolicy: Never
           ports:
             - containerPort: 8080

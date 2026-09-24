@@ -23,7 +23,7 @@ spec:
           # scripts/k8s-load-images.sh <tag> pulls it on the host and loads it in.
           # `Never` makes a missing image fail loudly instead of falling back to
           # the broken registry pull.
-          image: registry.gitlab.com/saifexd-group/ktebna/frontend:6586d1f0
+          image: registry.gitlab.com/saifexd-group/ktebna/frontend:bccadd04
           imagePullPolicy: Never
           # The image runs nginx as a non-root user, so it listens on 8080 (ports
           # below 1024 need root). nginx also proxies /api and /uploads to the
