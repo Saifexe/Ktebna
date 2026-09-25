@@ -69,6 +69,8 @@ graphify-out/
 # ===== Database dumps (contain user emails + password hashes) =====
 backups/
 *.sql
+# ...except Flyway migrations: schema only, no data, and the app needs them.
+!backend/src/main/resources/db/migration/*.sql
 *.sql.gz
 *.dump
 

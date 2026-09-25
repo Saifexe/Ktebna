@@ -82,7 +82,7 @@ Old `/account/*` URLs redirect to their new equivalents.
 |---|---|
 | Frontend | React 19, Vite 7, Tailwind CSS 4, TanStack Query, React Router 7, framer-motion, react-i18next (EN/FR/AR), MUI (dialogs), `@vis.gl/react-google-maps` |
 | Backend | Spring Boot 3.5, Java 17, Maven, Spring Security + JWT, Spring Data JPA |
-| Database | MySQL 8.0 (schema managed by Hibernate `ddl-auto=update`) |
+| Database | MySQL 8.0, schema versioned with Flyway migrations (`backend/src/main/resources/db/migration`) |
 | File storage | Local disk (`uploads/`), PVC-backed in Kubernetes |
 | Maps | Google Maps JavaScript API + Places API (New). Optional. |
 | Email | External mailer microservice (`MAILER_URL`), called asynchronously |
@@ -261,7 +261,7 @@ Secrets live in `.env` files that are **never committed** (see `.gitignore`). St
 | `JWT_EXPIRATION_MS` | `604800000` (7 days) | Token lifetime |
 | `UPLOAD_DIR` | `./uploads` | Where uploaded images are stored |
 | `MAILER_URL` | external Render service | Email notification endpoint |
-| `DDL_AUTO` | `update` | Hibernate schema mode |
+| `DDL_AUTO` | `validate` | Hibernate only checks that the entities match the Flyway schema. Leave it on `validate`. |
 | `GRAFANA_ADMIN_PASSWORD` | **required** (Compose) | Grafana admin login |
 
 ### Frontend (`ktebna/.env`, inlined at **build** time by Vite)
@@ -283,6 +283,12 @@ Secrets live in `.env` files that are **never committed** (see `.gitignore`). St
 Without a key, everything else keeps working; the "Open in Google Maps" link on book pages does not need a key.
 
 ---
+
+### Changing the database schema
+
+The schema is owned by Flyway. To add or change a table or column, add a new file in `backend/src/main/resources/db/migration` named `V<next number>__<what it does>.sql` (for example `V2__add_post_isbn.sql`) and update the matching entity. Never edit a migration that has already run: Flyway checksums each one and refuses to start if an applied file changes.
+
+On startup Flyway applies any new migrations, then Hibernate validates that the entities match the tables. A missing migration therefore stops the backend at startup with a clear message (for example `missing column [status] in table [posts]`), instead of failing later on a request. A database created before Flyway was added is recorded as already at `V1` the first time it starts, and nothing in it is changed.
 
 ## API reference
 
