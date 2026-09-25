@@ -1,0 +1,87 @@
+# Nightly logical backup of the ktebna database to its own volume.
+# Keeps the 7 newest dumps. Restore steps: k8s/README.md, "Backups".
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-backups
+  namespace: ktebna
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+  namespace: ktebna
+spec:
+  schedule: "0 2 * * *"            # 02:00 every night
+  timeZone: Africa/Tunis
+  # The PC is often off at 02:00. If a run was missed, it runs once as soon
+  # as the cluster is back (within 24 h) instead of skipping that day.
+  startingDeadlineSeconds: 86400
+  concurrencyPolicy: Forbid         # never two backups at the same time
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2               # retry twice, then report failure
+      activeDeadlineSeconds: 600    # kill a stuck backup after 10 min
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999          # the image's own "mysql" user
+            runAsGroup: 999
+            fsGroup: 999
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: backup
+              image: mysql:8.0      # same image as the database: nothing new to pull or trust
+              command: ["bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  out="/backups/ktebna-$(date -u +%Y%m%d-%H%M%S).sql.gz"
+                  mysqldump -h mysql -u ktebna_user \
+                    --single-transaction --no-tablespaces --triggers \
+                    --databases ktebna | gzip > "$out.part"
+                  mv "$out.part" "$out"   # only complete dumps get the final name
+                  ls -1t /backups/ktebna-*.sql.gz | tail -n +8 | xargs -r rm --
+                  echo "Backup written: $out"; ls -lh /backups
+              env:
+                # Read by mysqldump from the environment, so the password
+                # never appears in the process list or the logs.
+                - name: MYSQL_PWD
+                  valueFrom:
+                    secretKeyRef:
+                      name: mysql-secret
+                      key: mysql-password
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: mysql-backups
+            - name: tmp
+              emptyDir: {}

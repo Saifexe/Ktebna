@@ -57,6 +57,33 @@ kubectl port-forward -n ktebna svc/frontend 8081:80
 
 Then open http://localhost:8081. The backend only becomes Ready once `/actuator/health` reports the app **and** its database as UP.
 
+## Backups
+
+`mysql-backup.yaml` dumps the `ktebna` database every night at 02:00 (Africa/Tunis) to the `mysql-backups` volume and keeps the 7 newest files. If the cluster was off at 02:00, the backup runs once when it comes back (within 24 h). The job uses the app's own database user, runs as non-root with a read-only filesystem, and only renames a dump to `ktebna-<UTC time>.sql.gz` once it is complete.
+
+```sh
+# Run a backup now and read its output
+kubectl create job -n ktebna --from=cronjob/mysql-backup mysql-backup-manual
+kubectl logs -n ktebna job/mysql-backup-manual
+kubectl delete job -n ktebna mysql-backup-manual
+
+# Copy the newest backup to this PC (backups/, git-ignored)
+./scripts/k8s-pull-backup.sh
+```
+
+The volume lives inside the cluster, so it protects against bad data or a bad migration but not against a cluster reset ("Reset Kubernetes" in Docker Desktop). Copy a backup to the PC regularly and before any risky change.
+
+To restore, stop the backend so nothing writes during the restore, load the dump, then start the backend again:
+
+```sh
+kubectl scale deploy/backend -n ktebna --replicas=0
+gzip -dc backups/k8s-ktebna-<time>.sql.gz | kubectl exec -i -n ktebna deploy/mysql -- \
+  sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD"'
+kubectl scale deploy/backend -n ktebna --replicas=1
+```
+
+The dump includes `DROP TABLE IF EXISTS`, so it replaces the current tables with the backed-up ones.
+
 ## Notes
 
 - The frontend reads `VITE_API_URL` and `VITE_GOOGLE_MAPS_*` at Docker **build** time, not at container runtime. Leave `VITE_API_URL` empty so the browser calls its own origin and nginx proxies `/api`.
