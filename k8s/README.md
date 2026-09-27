@@ -3,14 +3,15 @@
 These manifests deploy Ktebna to the local Docker Desktop cluster:
 
 - MySQL with a persistent volume (`Recreate` strategy: the old pod stops before the new one starts, since two MySQL instances can't share one data volume)
-- Spring Boot backend with persistent uploads (runs as uid 10001; `fsGroup` makes the uploads volume writable)
+- Spring Boot backend (runs as uid 10001), storing uploaded images in Garage
+- Garage, S3-compatible object storage for the uploaded images (single node, private bucket, non-root, read-only filesystem)
 - React/nginx frontend (non-root nginx on port 8080; proxies `/api` and `/uploads` to the backend)
 - Cluster services for MySQL and backend
 - A LoadBalancer service for the frontend (port 80 → 8080)
 
 ## 1. Create the secrets (required, once)
 
-No credentials are committed to this repository. The Deployments read them from two Secrets that you create yourself. The backend refuses to start with a missing, short, or publicly known JWT secret.
+No credentials are committed to this repository. The Deployments read them from three Secrets that you create yourself. The backend refuses to start with a missing, short, or publicly known JWT secret.
 
 ```sh
 kubectl apply -f k8s/namespace.yaml
@@ -25,7 +26,12 @@ kubectl create secret generic mysql-secret \
 kubectl create secret generic backend-secret \
   --namespace ktebna \
   --from-literal=jwt-secret="$(openssl rand -base64 48)"
+
+# Garage: its internal secret, and the key the backend uses for the uploads bucket
+kubectl create secret generic garage-secret   --namespace ktebna   --from-literal=rpc-secret="$(openssl rand -hex 32)"   --from-literal=access-key="GK$(openssl rand -hex 16)"   --from-literal=secret-key="$(openssl rand -hex 32)"
 ```
+
+Garage creates the `ktebna-uploads` bucket and grants that key access on its first start. The key only works for Garage's S3 API inside the cluster; the bucket is private, and browsers get images through the backend's `/uploads/` endpoint.
 
 To rotate a value later, re-create the Secret with `--dry-run=client -o yaml | kubectl apply -f -` and restart the affected Deployment. MySQL only reads its passwords when the data volume is first initialised, so for the database passwords run `ALTER USER` inside MySQL **first**, then update the Secret, then restart `mysql` (its readiness check uses the root password) and `backend`.
 
@@ -56,6 +62,17 @@ kubectl port-forward -n ktebna svc/frontend 8081:80
 ```
 
 Then open http://localhost:8081. The backend only becomes Ready once `/actuator/health` reports the app **and** its database as UP.
+
+## Moving existing uploads into Garage (once)
+
+Clusters that stored images on the old `backend-uploads` volume copy them into Garage once, after `garage.yaml` is applied and the `garage` pod is Ready:
+
+```sh
+kubectl apply -f k8s/jobs/garage-import-uploads.yaml
+kubectl -n ktebna logs -f job/garage-import-uploads     # "Transferred: N / N, 100%"
+```
+
+The job mounts the old volume read-only and never deletes anything, so it is safe to re-run. Check that covers and avatars load in the app; to go back, set `STORAGE_TYPE` to `disk` in `backend.yaml` and re-apply. The old volume can be removed once the Garage copy has been checked.
 
 ## Backups
 

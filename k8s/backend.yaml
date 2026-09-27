@@ -67,6 +67,28 @@ spec:
                   key: jwt-secret
             - name: DDL_AUTO
               value: validate
+            # Uploads live in Garage (garage.yaml), shared by every backend pod.
+            # The old volume below stays mounted until its files are imported and
+            # checked (k8s/jobs/garage-import-uploads.yaml); STORAGE_TYPE=disk
+            # switches back to it.
+            - name: STORAGE_TYPE
+              value: s3
+            - name: S3_ENDPOINT
+              value: http://garage:3900
+            - name: S3_REGION
+              value: garage
+            - name: S3_BUCKET
+              value: ktebna-uploads
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: access-key
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: secret-key
             - name: UPLOAD_DIR
               value: /app/uploads
             # Java sizes its heap from the container limit, but only 25% by

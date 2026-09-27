@@ -3,6 +3,7 @@ package com.ktebna.backend.unit;
 import com.ktebna.backend.TestImages;
 import com.ktebna.backend.exception.ApiException;
 import com.ktebna.backend.service.FileStorageService;
+import com.ktebna.backend.storage.DiskUploadStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -11,7 +12,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -35,8 +35,7 @@ class FileStorageServiceTest {
 
     @BeforeEach
     void setUp() {
-        storage = new FileStorageService();
-        ReflectionTestUtils.setField(storage, "uploadDir", uploadDir.toString());
+        storage = new FileStorageService(new DiskUploadStore(uploadDir.toString()));
     }
 
     private Path storeAs(String clientName, String contentType, byte[] content) {

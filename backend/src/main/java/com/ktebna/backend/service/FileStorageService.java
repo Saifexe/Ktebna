@@ -1,10 +1,11 @@
 package com.ktebna.backend.service;
 
 import com.ktebna.backend.exception.ApiException;
+import com.ktebna.backend.storage.UploadStore;
+import com.ktebna.backend.storage.UploadStore.StoredUpload;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -24,11 +25,10 @@ import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -42,14 +42,18 @@ public class FileStorageService {
     // (a small, highly compressed file can declare a huge canvas).
     static final long MAX_SOURCE_PIXELS = 64_000_000L;
     private static final float JPEG_QUALITY = 0.85f;
-    // What store() returns: a random UUID plus our own extension. Also rules out
-    // "../" and any path outside the uploads directory.
+    private static final String URL_PREFIX = "/uploads/";
+    // The file names store() creates: a random UUID plus our own extension. Also
+    // rules out "../" and anything else that isn't one of our uploads.
     private static final Pattern STORED_NAME =
-            Pattern.compile("/uploads/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|jpeg|png|gif|webp)");
+            Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|jpeg|png|gif|webp)");
     private static final Logger log = LoggerFactory.getLogger(FileStorageService.class);
 
-    @Value("${app.upload.dir}")
-    private String uploadDir;
+    private final UploadStore store;
+
+    public FileStorageService(UploadStore store) {
+        this.store = store;
+    }
 
     // ImageIO finds decoders through the class loader that first touches it;
     // inside the Spring Boot jar that can miss the WebP/JPEG plugins without a rescan.
@@ -86,15 +90,29 @@ public class FileStorageService {
                 image = redraw(image, image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
             }
             String fileName = UUID.randomUUID() + (transparent ? ".png" : ".jpg");
-            Path dir = Paths.get(uploadDir);
-            Files.createDirectories(dir);
-            write(image, transparent, dir.resolve(fileName));
+            store.put(fileName, encode(image, transparent), transparent ? "image/png" : "image/jpeg");
 
             // Relative, so links survive a change of host or domain: nginx (or the
             // frontend's API base URL in dev) serves /uploads from the backend.
-            return "/uploads/" + fileName;
-        } catch (IOException e) {
+            return URL_PREFIX + fileName;
+        } catch (IOException | RuntimeException e) {
+            if (e instanceof ApiException api) {
+                throw api;
+            }
+            log.warn("Could not store upload: {}", e.getMessage());
             throw new ApiException("Failed to store file", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /** A stored upload by file name, for the /uploads/ endpoint; empty for anything else. */
+    public Optional<StoredUpload> load(String fileName) {
+        if (fileName == null || !STORED_NAME.matcher(fileName).matches()) {
+            return Optional.empty();
+        }
+        try {
+            return store.get(fileName);
+        } catch (IOException e) {
+            throw new ApiException("Failed to read file", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -104,15 +122,16 @@ public class FileStorageService {
      * still points at. Anything that isn't one of our upload names is ignored.
      */
     public void deleteLater(String url) {
-        if (url == null || !STORED_NAME.matcher(url).matches()) {
+        if (url == null || !url.startsWith(URL_PREFIX)
+                || !STORED_NAME.matcher(url.substring(URL_PREFIX.length())).matches()) {
             return;
         }
-        Path file = Paths.get(uploadDir).resolve(url.substring("/uploads/".length()));
+        String fileName = url.substring(URL_PREFIX.length());
         Runnable delete = () -> {
             try {
-                Files.deleteIfExists(file);
-            } catch (IOException e) {
-                log.warn("Could not delete upload {}: {}", file, e.getMessage());
+                store.delete(fileName);
+            } catch (IOException | RuntimeException e) {
+                log.warn("Could not delete upload {}: {}", fileName, e.getMessage());
             }
         };
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -340,15 +359,16 @@ public class FileStorageService {
         return src.getColorModel().hasAlpha() ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
     }
 
-    private static void write(BufferedImage image, boolean png, Path target) throws IOException {
+    private static byte[] encode(BufferedImage image, boolean png) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         if (png) {
-            if (!ImageIO.write(image, "png", target.toFile())) {
+            if (!ImageIO.write(image, "png", bytes)) {
                 throw new IOException("No PNG writer");
             }
-            return;
+            return bytes.toByteArray();
         }
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
-        try (ImageOutputStream out = ImageIO.createImageOutputStream(target.toFile())) {
+        try (ImageOutputStream out = ImageIO.createImageOutputStream(bytes)) {
             writer.setOutput(out);
             ImageWriteParam param = writer.getDefaultWriteParam();
             param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
@@ -357,5 +377,6 @@ public class FileStorageService {
         } finally {
             writer.dispose();
         }
+        return bytes.toByteArray();
     }
 }

@@ -1,0 +1,76 @@
+# One-off: copies the images already on the old backend-uploads volume into
+# Garage. Kept out of k8s/ itself so `kubectl apply -f k8s/` never runs it.
+# Run once after garage.yaml is applied and Ready (see k8s/README.md):
+#   kubectl apply -f k8s/jobs/garage-import-uploads.yaml
+#   kubectl -n ktebna logs -f job/garage-import-uploads
+# The volume is mounted read-only, and `copy` never deletes, so it is safe to re-run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: garage-import-uploads
+  namespace: ktebna
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+      containers:
+        - name: rclone
+          image: rclone/rclone:1.75.1
+          args: ["copy", "/uploads", "garage:ktebna-uploads", "--s3-no-check-bucket", "-v"]
+          env:
+            # rclone reads a remote called "garage" from RCLONE_CONFIG_GARAGE_* variables.
+            - name: RCLONE_CONFIG_GARAGE_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_GARAGE_PROVIDER
+              value: Other
+            - name: RCLONE_CONFIG_GARAGE_ENDPOINT
+              value: http://garage:3900
+            - name: RCLONE_CONFIG_GARAGE_REGION
+              value: garage
+            - name: RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE
+              value: "true"
+            - name: RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: access-key
+            - name: RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: secret-key
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+              ephemeral-storage: 10Mi
+            limits:
+              memory: 256Mi
+              ephemeral-storage: 256Mi
+          volumeMounts:
+            - name: uploads
+              mountPath: /uploads
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: backend-uploads
+            readOnly: true
+        - name: tmp
+          emptyDir: {}

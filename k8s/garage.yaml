@@ -1,0 +1,136 @@
+# Garage: S3-compatible object storage for uploaded covers and avatars, so every
+# backend pod reads and writes the same files. Single node, one bucket, one key,
+# all created by Garage itself on first start (--single-node --default-bucket).
+# The garage-secret Secret is NOT defined here; create it first (see k8s/README.md).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garage-config
+  namespace: ktebna
+data:
+  garage.toml: |
+    metadata_dir = "/var/lib/garage/meta"
+    data_dir = "/var/lib/garage/data"
+    db_engine = "sqlite"
+    # One copy: the cluster has one node. Nightly backups are the safety net.
+    replication_factor = 1
+    rpc_bind_addr = "[::]:3901"
+    rpc_public_addr = "127.0.0.1:3901"
+    [s3_api]
+    s3_region = "garage"
+    api_bind_addr = "[::]:3900"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: garage-data
+  namespace: ktebna
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garage
+  namespace: ktebna
+spec:
+  replicas: 1
+  # The old pod stops before the new one starts: one Garage owns the volume.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: garage
+  template:
+    metadata:
+      labels:
+        app: garage
+    spec:
+      automountServiceAccountToken: false
+      # The image runs as root by default; it needs no privileges at all.
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        fsGroup: 10001
+      containers:
+        - name: garage
+          image: dxflrs/garage:v2.4.1
+          args: ["/garage", "server", "--single-node", "--default-bucket"]
+          env:
+            - name: GARAGE_CONFIG_FILE
+              value: /etc/garage/garage.toml
+            - name: GARAGE_DEFAULT_BUCKET
+              value: ktebna-uploads
+            - name: GARAGE_RPC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: rpc-secret
+            - name: GARAGE_DEFAULT_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: access-key
+            - name: GARAGE_DEFAULT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: secret-key
+          ports:
+            - containerPort: 3900
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Garage is small (a few tens of MiB); the limits keep a problem in it
+          # from starving MySQL or the backend. Data lives on the PVC and the root
+          # filesystem is read-only, so ephemeral storage only covers logs.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+              ephemeral-storage: 10Mi
+            limits:
+              memory: 256Mi
+              ephemeral-storage: 100Mi
+          readinessProbe:
+            tcpSocket:
+              port: 3900
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 3900
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/garage
+            - name: config
+              mountPath: /etc/garage
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: garage-data
+        - name: config
+          configMap:
+            name: garage-config
+---
+# S3 API only. The RPC (3901) and admin ports are not exposed.
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage
+  namespace: ktebna
+spec:
+  selector:
+    app: garage
+  ports:
+    - port: 3900
+      targetPort: 3900

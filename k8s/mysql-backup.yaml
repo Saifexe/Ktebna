@@ -68,12 +68,15 @@ spec:
                 readOnlyRootFilesystem: true
                 capabilities:
                   drop: ["ALL"]
+              # Dumps go to the backups PVC; ephemeral storage only covers /tmp and logs.
               resources:
                 requests:
                   cpu: 50m
                   memory: 64Mi
+                  ephemeral-storage: 10Mi
                 limits:
                   memory: 256Mi
+                  ephemeral-storage: 256Mi
               volumeMounts:
                 - name: backups
                   mountPath: /backups

@@ -114,11 +114,12 @@ flowchart LR
         direction LR
         FE["frontend<br/>Nginx + React SPA<br/>(LoadBalancer)"] -->|"/api/* and /uploads/* proxied"| BE["backend<br/>Spring Boot API<br/>(ClusterIP)"]
         BE --> DB[("mysql<br/>PVC-backed<br/>(ClusterIP)")]
+        BE -->|"S3 API, private bucket"| OBJ[("garage<br/>uploaded images<br/>(ClusterIP)")]
     end
     BE -.->|async| MAIL["Mailer service<br/>(external)"]
 ```
 
-Nginx serves the frontend as static assets and reverse-proxies `/api/*` and `/uploads/*` requests to the backend Service. Docker Compose and Kubernetes both have a service named `backend` on port `8080`, so the same image works in both environments without knowing a hostname at build time.
+Nginx serves the frontend as static assets and reverse-proxies `/api/*` and `/uploads/*` requests to the backend Service. Uploaded covers and avatars are stored in [Garage](https://garagehq.deuxfleurs.fr/), a small S3-compatible object store, so every backend pod sees the same files; the bucket is private and the backend serves `/uploads/*` from it. Docker Compose and Kubernetes both have a service named `backend` on port `8080`, so the same image works in both environments without knowing a hostname at build time.
 
 ### Backend domain model
 
@@ -189,7 +190,8 @@ flowchart TB
 ├── monitoring/               Prometheus scrape config + alert rules, Alertmanager config, Grafana provisioning
 ├── scripts/                  dev-backend.ps1 / .sh: start the API with .env loaded
 ├── docs/SECURITY_GATES.md    Pipeline gate policy
-├── docker-compose.yml        Full local stack (6 services)
+├── garage/garage.toml        Garage (image storage) settings for Compose
+├── docker-compose.yml        Full local stack
 ├── .gitlab-ci.yml            CI/CD pipeline
 └── SECURITY.md               Security posture and incident history
 ```
@@ -259,7 +261,11 @@ Secrets live in `.env` files that are **never committed** (see `.gitignore`). St
 | `JWT_SECRET` | **required** | JWT signing key, at least 32 random characters. The backend refuses to start with anything weaker. |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Browser origins allowed to call the API directly (the Nginx proxy doesn't need it) |
 | `JWT_EXPIRATION_MS` | `604800000` (7 days) | Token lifetime |
-| `UPLOAD_DIR` | `./uploads` | Where uploaded images are stored |
+| `STORAGE_TYPE` | `disk` | Where uploaded images go: `disk` (the `UPLOAD_DIR` folder, for local development) or `s3` (Garage; Compose and Kubernetes set this) |
+| `UPLOAD_DIR` | `./uploads` | Image folder when `STORAGE_TYPE=disk` |
+| `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` | none / `garage` / `ktebna-uploads` | Garage location when `STORAGE_TYPE=s3` |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | **required** when `STORAGE_TYPE=s3` | Garage key for the uploads bucket; Garage creates the bucket and key from these on first start |
+| `GARAGE_RPC_SECRET` | **required** (Compose) | Garage's internal secret |
 | `MAILER_URL` | external Render service | Email notification endpoint |
 | `DDL_AUTO` | `validate` | Hibernate only checks that the entities match the Flyway schema. Leave it on `validate`. |
 | `GRAFANA_ADMIN_PASSWORD` | **required** (Compose) | Grafana admin login |
@@ -448,7 +454,8 @@ Manifests live in `k8s/`:
 - `namespace.yaml`: the `ktebna` namespace
 - `mysql.yaml`: MySQL Deployment, Service, and PVC
 - `mysql.yaml` uses the `Recreate` strategy: two MySQL pods can't share one data volume, so the old pod stops before the new one starts
-- `backend.yaml`: PVC (for uploads), Deployment, and Service. Readiness checks `/actuator/health` (app **and** database); liveness only checks that the process answers, so a database outage takes the pod out of rotation instead of restarting it
+- `garage.yaml`: Garage (S3-compatible storage for uploaded images): ConfigMap, PVC, Deployment (`Recreate`, non-root, read-only filesystem) and a Service exposing only the S3 API; `jobs/garage-import-uploads.yaml` copies images from the old uploads volume once
+- `backend.yaml`: PVC (the old uploads volume, kept until its images are imported into Garage), Deployment, and Service. Readiness checks `/actuator/health` (app **and** database); liveness only checks that the process answers, so a database outage takes the pod out of rotation instead of restarting it
 - `frontend.yaml`: frontend Deployment (non-root Nginx on port 8080, proxying `/api` and `/uploads` to the `backend` Service) and Service (`type: LoadBalancer`, port 80 → 8080)
 
 Secrets are created by hand, never committed; see [k8s/README.md](./k8s/README.md).
@@ -520,7 +527,7 @@ With the current manifests (`imagePullPolicy: Never`), the equivalent error is *
 ## Known issues
 
 - **Kubernetes image pull failure (unresolved, investigated and parked):** the local Docker Desktop Kubernetes node cannot pull newly built images past a fixed point (consistent `short read: unexpected EOF` at an identical byte offset). Ruled out across two sessions: credentials (verified valid via direct registry auth checks), tag vs. digest reference, a full Docker Desktop restart, proxy interference (registry added to Docker Desktop's proxy bypass list, then retried), and a full Kubernetes cluster reset. A control pull of a public Docker Hub image succeeded on the same node, so the issue is scoped to this private registry's pull path, not general networking. **Worked around on 22 Sep 2026:** images are now loaded straight into the node (`scripts/k8s-load-images.sh`, which since 24 Sep 2026 pulls the CI-published images on the host rather than using local builds), so the cluster runs the current app again, verified end to end (sign-up, listing with photo upload, image served back through Nginx, Library API). Until then it had been stuck on August images whose frontend called `localhost:8080` and had no `/api` proxy.
-- **Monitoring** is implemented and verified in Docker Compose only (metrics scraping, dashboard auto-provisioning, live panel data). Not deployed to Kubernetes yet (the cluster runs only MySQL, backend and frontend).
+- **Monitoring** is implemented and verified in Docker Compose only (metrics scraping, dashboard auto-provisioning, live panel data). Not deployed to Kubernetes yet (the cluster runs only MySQL, Garage, backend and frontend).
 - **Maps need a key:** without `VITE_GOOGLE_MAPS_API_KEY` the map picker and book-page maps are hidden.
 - **Email notifications can be slow to arrive:** the mailer runs on a free host that sleeps when idle and can take up to a minute to wake. Chat messages are unaffected, because the email is sent in the background.
 - **Near-real-time, not real-time:** unread counts refresh every 8 seconds and an open chat every 5 seconds (polling, not WebSockets).
