@@ -32,7 +32,8 @@ const EMPTY = {
 // Sales are always priced in Tunisian dinars: the seller types the amount only.
 const CURRENCY = "TND";
 const PRICE = /^\d{1,6}([.,]\d{1,3})?$/;
-const amountOf = (deal) => String(deal || "").replace(/\s*(TND|DT)\s*$/i, "").trim();
+// Trim first, then drop a trailing currency: no leading \s* for the regex to backtrack over.
+const amountOf = (deal) => String(deal || "").trim().replace(/(TND|DT)$/i, "").trim();
 
 const inputCls =
   "mt-2 h-12 w-full rounded-md border bg-surface-soft px-4 font-normal outline-none focus:ring-2 focus:ring-ring";
