@@ -1,5 +1,6 @@
 package com.ktebna.backend.dto;
 
+import com.ktebna.backend.entity.Message;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,4 +16,9 @@ public class MessageResponse {
     private Instant createdAt;
     private Long userId;
     private String userName;
+
+    public static MessageResponse from(Message m) {
+        return new MessageResponse(m.getId(), m.getMessageContent(), m.getCreatedAt(),
+                m.getUser().getId(), m.getUser().getName());
+    }
 }

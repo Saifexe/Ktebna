@@ -92,6 +92,20 @@ class ListingApiTest extends ApiTestBase {
     }
 
     @Test
+    void searchTreatsLikeWildcardsAsPlainText() throws Exception {
+        Account seller = register("Wildcard");
+        String marker = unique("wld");
+        createPost(seller, marker + "_50% off", true, Map.of());
+        createPost(seller, marker + "x50 dinars off", true, Map.of());
+
+        // Unescaped, "_" and "%" would match both titles.
+        mvc.perform(get("/api/posts").param("search", marker + "_50%"))
+                .andExpect(jsonPath("$.count").value(1));
+        mvc.perform(get("/api/posts").param("search", marker + "%off"))
+                .andExpect(jsonPath("$.count").value(0));
+    }
+
+    @Test
     void feedFiltersByCategoryDealTypeAndCity() throws Exception {
         Account seller = register("Filter");
         String marker = unique("flt");

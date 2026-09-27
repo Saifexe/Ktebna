@@ -1,6 +1,7 @@
 package com.ktebna.backend.repository;
 
 import com.ktebna.backend.entity.Message;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,9 +12,12 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     // Ordered by id, the order messages were saved in: two sent within the same
     // instant still come back in the right order, and the conversation_id index
     // (which InnoDB extends with the id) serves it without a sort.
+    // The sender's name is shown on every message, so fetch it with them.
+    @EntityGraph(attributePaths = "user")
     List<Message> findByConversationIdOrderByIdAsc(Long conversationId);
 
     // Only what an open chat hasn't seen yet, for its polling.
+    @EntityGraph(attributePaths = "user")
     List<Message> findByConversationIdAndIdGreaterThanOrderByIdAsc(Long conversationId, Long afterId);
 
     // Every message in any conversation the user takes part in

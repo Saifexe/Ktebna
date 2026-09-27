@@ -1,118 +1,35 @@
 package com.ktebna.backend.controller;
 
-import com.ktebna.backend.dto.*;
-import com.ktebna.backend.entity.Conversation;
-import com.ktebna.backend.entity.Message;
+import com.ktebna.backend.dto.MessageResponse;
+import com.ktebna.backend.dto.SendMessageRequest;
+import com.ktebna.backend.dto.SendMessageResponse;
 import com.ktebna.backend.entity.User;
-import com.ktebna.backend.exception.ApiException;
-import com.ktebna.backend.repository.ConversationRepository;
-import com.ktebna.backend.repository.MessageRepository;
-import com.ktebna.backend.repository.UserRepository;
-import com.ktebna.backend.service.EmailNotificationService;
+import com.ktebna.backend.service.MessagingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class MessageController {
 
-    private static final int PREVIEW_LENGTH = 1000;
-
-    private final ConversationRepository conversationRepository;
-    private final MessageRepository messageRepository;
-    private final UserRepository userRepository;
-    private final EmailNotificationService emailNotificationService;
+    private final MessagingService messagingService;
 
     // The whole thread, or with ?afterId= only the messages newer than that one.
     @GetMapping("/conversations/{conversationId}/messages")
     public List<MessageResponse> getMessages(@AuthenticationPrincipal User currentUser,
-                                              @PathVariable Long conversationId,
-                                              @RequestParam(required = false) Long afterId) {
-        Conversation conv = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new ApiException("Conversation not found", HttpStatus.NOT_FOUND));
-        ConversationController.assertParticipant(currentUser, conv);
-
-        List<Message> messages = afterId == null
-                ? messageRepository.findByConversationIdOrderByIdAsc(conversationId)
-                : messageRepository.findByConversationIdAndIdGreaterThanOrderByIdAsc(conversationId, afterId);
-        return messages.stream()
-                .map(this::toResponse)
-                .toList();
+                                             @PathVariable Long conversationId,
+                                             @RequestParam(required = false) Long afterId) {
+        return messagingService.messages(currentUser, conversationId, afterId);
     }
 
-    // Mirrors the original sendMessage() flow: get-or-create conversation,
-    // persist the message, update the conversation preview, then fire a
-    // (non-blocking) email notification.
     @PostMapping("/messages")
-    @Transactional
     public SendMessageResponse sendMessage(@AuthenticationPrincipal User currentUser,
-                                            @Valid @RequestBody SendMessageRequest req) {
-        if (req.getOtherUserId().equals(currentUser.getId())) {
-            throw new ApiException("You cannot message yourself", HttpStatus.BAD_REQUEST);
-        }
-        User otherUser = userRepository.findById(req.getOtherUserId())
-                .orElseThrow(() -> new ApiException("Recipient not found", HttpStatus.NOT_FOUND));
-
-        Conversation conversation = conversationRepository
-        .findBetweenUsers(currentUser.getId(), otherUser.getId())
-        .orElseGet(() -> {
-            Conversation c = new Conversation();
-            if (currentUser.getId() < otherUser.getId()) {
-                c.setFirstUser(currentUser);
-                c.setSecondUser(otherUser);
-            } else {
-                c.setFirstUser(otherUser);
-                c.setSecondUser(currentUser);
-            }
-            c.setConversationTopic(req.getBookName());
-            return conversationRepository.save(c);
-        });
-
-        Message message = new Message();
-        message.setConversation(conversation);
-        message.setUser(currentUser);
-        message.setMessageContent(req.getMessageContent());
-        message = messageRepository.save(message);
-
-        conversation.setLastMessageContent(preview(req.getMessageContent()));
-        conversation.setLastMessageSender(currentUser.getId());
-        conversation.setUpdatedAt(Instant.now());
-        // Writing a message means you've seen everything before it.
-        conversation.markReadUpTo(currentUser.getId(), message.getId());
-        conversation = conversationRepository.save(conversation);
-
-        if (otherUser.getEmail() != null && !otherUser.getEmail().isBlank()) {
-            emailNotificationService.sendNotification(
-                    otherUser.getEmail(),
-                    otherUser.getName(),
-                    currentUser.getName(),
-                    req.getMessageContent(),
-                    req.getBookName() != null ? req.getBookName() : conversation.getConversationTopic()
-            );
-        }
-
-        return new SendMessageResponse(
-                ConversationController.toResponseStatic(conversation),
-                toResponse(message)
-        );
-    }
-
-    // Messages hold up to 2000 characters; the preview column holds 1000.
-    private static String preview(String content) {
-        return content.length() <= PREVIEW_LENGTH ? content : content.substring(0, PREVIEW_LENGTH - 1) + "…";
-    }
-
-    private MessageResponse toResponse(Message m) {
-        return new MessageResponse(m.getId(), m.getMessageContent(), m.getCreatedAt(),
-                m.getUser().getId(), m.getUser().getName());
+                                           @Valid @RequestBody SendMessageRequest req) {
+        return messagingService.send(currentUser, req);
     }
 }

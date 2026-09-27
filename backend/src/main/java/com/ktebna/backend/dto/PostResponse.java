@@ -3,7 +3,6 @@ package com.ktebna.backend.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ktebna.backend.entity.Post;
 import com.ktebna.backend.entity.PostStatus;
-import com.ktebna.backend.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,15 +34,12 @@ public class PostResponse {
     private UserDto user;
 
     public static PostResponse from(Post post) {
-        User u = post.getUser();
-        // Listings are public: never include the seller's email address.
-        UserDto userDto = new UserDto(u.getId(), u.getName(), null, u.getProfilePicture());
         return new PostResponse(
                 post.getId(), post.getBookName(), post.getBookAuthor(), post.getBookCategory(),
                 post.getBookDeal(), post.getBookDealType(), post.getBookImage(), post.getBookLocation(),
                 post.getBookCondition(), post.getBookDescription(),
                 post.getPickupLat(), post.getPickupLng(), post.getPickupSpot(),
-                post.isPublic(), post.getStatus(), post.getCreatedAt(), userDto
+                post.isPublic(), post.getStatus(), post.getCreatedAt(), UserDto.withoutEmail(post.getUser())
         );
     }
 }
