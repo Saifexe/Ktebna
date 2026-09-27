@@ -57,6 +57,8 @@ spec:
         runAsGroup: 10001
         runAsNonRoot: true
         fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: garage
           image: dxflrs/garage:v2.4.1

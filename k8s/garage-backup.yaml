@@ -1,0 +1,118 @@
+# Nightly backup of the uploaded images in Garage to their own volume.
+# Uploads never change once written, so instead of 7 full copies this keeps one
+# mirror (current/) plus, for 7 days, every image that was removed from Garage
+# since the previous run (deleted/<UTC time>/). A database dump from any of the
+# last 7 days therefore still finds all of its images.
+# Restore steps: k8s/README.md, "Backups".
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: garage-backups
+  namespace: ktebna
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: garage-backup
+  namespace: ktebna
+spec:
+  schedule: "30 2 * * *"           # 02:30, after the 02:00 database backup
+  timeZone: Africa/Tunis
+  # The PC is often off at night. If a run was missed, it runs once as soon
+  # as the cluster is back (within 24 h) instead of skipping that day.
+  startingDeadlineSeconds: 86400
+  concurrencyPolicy: Forbid         # never two backups at the same time
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2               # retry twice, then report failure
+      activeDeadlineSeconds: 900    # kill a stuck backup after 15 min
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: backup
+              image: rclone/rclone:1.75.1
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  stamp=$(date -u +%Y%m%d-%H%M%S)
+                  mkdir -p /backups/current /backups/deleted
+                  # Mirror the bucket. Images removed from it since the last run
+                  # are moved aside into deleted/<stamp>/ instead of being dropped.
+                  rclone sync garage:ktebna-uploads /backups/current \
+                    --backup-dir "/backups/deleted/$stamp" --s3-no-check-bucket
+                  # Drop sets older than 7 days, by the date in their name: a
+                  # file's own date is its upload date, not when it was removed.
+                  cutoff=$(date -u -d "@$(( $(date +%s) - 7 * 86400 ))" +%Y%m%d)
+                  for dir in /backups/deleted/*/; do
+                    [ -d "$dir" ] || continue
+                    day=$(basename "$dir" | cut -c1-8)
+                    if [ "$day" -lt "$cutoff" ]; then rm -rf "$dir"; echo "Pruned $(basename "$dir")"; fi
+                  done
+                  echo "Mirror: $(ls /backups/current | wc -l) files; removed-image sets kept: $(ls /backups/deleted | wc -l)"
+              env:
+                # rclone reads a remote called "garage" from RCLONE_CONFIG_GARAGE_* variables.
+                - name: RCLONE_CONFIG_GARAGE_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_GARAGE_PROVIDER
+                  value: Other
+                - name: RCLONE_CONFIG_GARAGE_ENDPOINT
+                  value: http://garage:3900
+                - name: RCLONE_CONFIG_GARAGE_REGION
+                  value: garage
+                - name: RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE
+                  value: "true"
+                - name: RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: access-key
+                - name: RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: secret-key
+                - name: HOME
+                  value: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              # Images go to the backups PVC; ephemeral storage only covers /tmp and logs.
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                  ephemeral-storage: 10Mi
+                limits:
+                  memory: 256Mi
+                  ephemeral-storage: 256Mi
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: garage-backups
+            - name: tmp
+              emptyDir: {}

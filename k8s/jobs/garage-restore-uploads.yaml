@@ -1,0 +1,79 @@
+# One-off: puts the backed-up images (garage-backups volume, current/) back
+# into Garage, for example after a lost Garage volume. `copy` only adds what is
+# missing and never deletes, so images uploaded since the backup are kept.
+#   kubectl apply -f k8s/jobs/garage-restore-uploads.yaml
+#   kubectl -n ktebna logs -f job/garage-restore-uploads
+#   kubectl -n ktebna delete job garage-restore-uploads
+# An image removed in the last 7 days is under deleted/<time>/ on the same
+# volume; see k8s/README.md, "Backups".
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: garage-restore-uploads
+  namespace: ktebna
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rclone
+          image: rclone/rclone:1.75.1
+          args: ["copy", "/backups/current", "garage:ktebna-uploads", "--s3-no-check-bucket", "-v"]
+          env:
+            - name: RCLONE_CONFIG_GARAGE_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_GARAGE_PROVIDER
+              value: Other
+            - name: RCLONE_CONFIG_GARAGE_ENDPOINT
+              value: http://garage:3900
+            - name: RCLONE_CONFIG_GARAGE_REGION
+              value: garage
+            - name: RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE
+              value: "true"
+            - name: RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: access-key
+            - name: RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: secret-key
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+              ephemeral-storage: 10Mi
+            limits:
+              memory: 256Mi
+              ephemeral-storage: 256Mi
+          volumeMounts:
+            - name: backups
+              mountPath: /backups
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: backups
+          persistentVolumeClaim:
+            claimName: garage-backups
+            readOnly: true
+        - name: tmp
+          emptyDir: {}

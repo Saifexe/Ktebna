@@ -20,6 +20,8 @@ spec:
         runAsUser: 10001
         runAsGroup: 10001
         runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: rclone
           image: rclone/rclone:1.75.1

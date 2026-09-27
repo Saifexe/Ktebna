@@ -5,6 +5,7 @@ These manifests deploy Ktebna to the local Docker Desktop cluster:
 - MySQL with a persistent volume (`Recreate` strategy: the old pod stops before the new one starts, since two MySQL instances can't share one data volume)
 - Spring Boot backend (runs as uid 10001), storing uploaded images in Garage
 - Garage, S3-compatible object storage for the uploaded images (single node, private bucket, non-root, read-only filesystem)
+- Nightly backups of the database and of the uploaded images, each to its own volume
 - React/nginx frontend (non-root nginx on port 8080; proxies `/api` and `/uploads` to the backend)
 - Cluster services for MySQL and backend
 - A LoadBalancer service for the frontend (port 80 → 8080)
@@ -100,6 +101,24 @@ kubectl scale deploy/backend -n ktebna --replicas=1
 ```
 
 The dump includes `DROP TABLE IF EXISTS`, so it replaces the current tables with the backed-up ones.
+
+### Uploaded images
+
+`garage-backup.yaml` backs up the Garage bucket every night at 02:30 (after the database) to the `garage-backups` volume, with the same catch-up rule. Uploads never change once written, so it keeps one mirror (`current/`) instead of seven full copies, plus every image removed from Garage since the previous run, in `deleted/<UTC time>/`, for 7 days. A database dump from any of the last 7 days therefore still finds all of its images. Like the database volume, it does not survive a cluster reset.
+
+```sh
+# Run an image backup now and read its output
+kubectl create job -n ktebna --from=cronjob/garage-backup garage-backup-manual
+kubectl logs -n ktebna job/garage-backup-manual       # "Mirror: N files; ..."
+kubectl delete job -n ktebna garage-backup-manual
+
+# Put the backed-up images back into Garage (adds what is missing, deletes nothing)
+kubectl apply -f k8s/jobs/garage-restore-uploads.yaml
+kubectl logs -n ktebna -f job/garage-restore-uploads
+kubectl delete job -n ktebna garage-restore-uploads
+```
+
+After restoring a database dump from an earlier day, also run the restore job: the images that dump refers to are in `current/` or, if removed since, in `deleted/`. To bring back such an image, copy it from `deleted/<time>/` into Garage the same way (change the job's source path to that folder).
 
 ## Notes
 
